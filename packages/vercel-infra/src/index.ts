@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { handle } from "hono/vercel";
 import { requireInternalAuth } from "./auth";
 import {
   buildRepoImageSandboxName,
@@ -135,6 +134,11 @@ async function bootstrapRuntime(
   }
 }
 
+function formatSandboxRouteError(route: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return `${route}: ${message}`;
+}
+
 async function callBuildCompleteCallback(
   callbackUrl: string,
   buildId: string,
@@ -180,21 +184,27 @@ app.post("/api-create-sandbox", async (c) => {
     );
   }
 
-  const persistentName = buildSessionSandboxName(body.session_id);
-  const sandbox = await getOrCreatePersistentSandbox(persistentName);
-  const responseSandboxId = body.sandbox_id || persistentName;
-  await syncRepository(sandbox, body, c.env);
-  await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
+  try {
+    const persistentName = buildSessionSandboxName(body.session_id);
+    const sandbox = await getOrCreatePersistentSandbox(persistentName);
+    const responseSandboxId = body.sandbox_id || persistentName;
+    await syncRepository(sandbox, body, c.env);
+    await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
 
-  return c.json({
-    success: true,
-    data: {
-      sandbox_id: responseSandboxId,
-      modal_object_id: persistentName,
-      status: "warming",
-      created_at: Date.now(),
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        sandbox_id: responseSandboxId,
+        modal_object_id: persistentName,
+        status: "warming",
+        created_at: Date.now(),
+      },
+    });
+  } catch (error) {
+    const message = formatSandboxRouteError("api-create-sandbox", error);
+    console.error(message, error);
+    return c.json({ success: false, error: message }, 500);
+  }
 });
 
 app.post("/api-restore-sandbox", async (c) => {
@@ -210,20 +220,26 @@ app.post("/api-restore-sandbox", async (c) => {
     );
   }
 
-  const persistentName = buildSessionSandboxName(body.session_config.session_id);
-  const sandbox = await resumeOrCreateFromSnapshot(body.snapshot_image_id ?? "", persistentName);
-  const responseSandboxId = body.sandbox_id || persistentName;
-  await syncRepository(sandbox, body, c.env);
-  await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
+  try {
+    const persistentName = buildSessionSandboxName(body.session_config.session_id);
+    const sandbox = await resumeOrCreateFromSnapshot(body.snapshot_image_id ?? "", persistentName);
+    const responseSandboxId = body.sandbox_id || persistentName;
+    await syncRepository(sandbox, body, c.env);
+    await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
 
-  return c.json({
-    success: true,
-    data: {
-      sandbox_id: responseSandboxId,
-      modal_object_id: persistentName,
-      status: "warming",
-    },
-  });
+    return c.json({
+      success: true,
+      data: {
+        sandbox_id: responseSandboxId,
+        modal_object_id: persistentName,
+        status: "warming",
+      },
+    });
+  } catch (error) {
+    const message = formatSandboxRouteError("api-restore-sandbox", error);
+    console.error(message, error);
+    return c.json({ success: false, error: message }, 500);
+  }
 });
 
 app.post("/api-snapshot-sandbox", async (c) => {
@@ -347,6 +363,4 @@ app.post("/api-delete-provider-image", async (c) => {
   });
 });
 
-export const GET = handle(app);
-export const POST = handle(app);
 export default app;

@@ -1,5 +1,9 @@
-import app from "../src/index";
+// Import bundled app: Vercel does not ship `src/` to /var/task; `npm run build` must run first (vercel.json buildCommand).
+import app from "../dist/index.js";
 import { handle } from "hono/vercel";
+
+/** Default serverless limit is too low for Sandbox.create + git clone; raise to plan maximum (see vercel.json). */
+export const maxDuration = 300;
 
 const handler = handle(app);
 
