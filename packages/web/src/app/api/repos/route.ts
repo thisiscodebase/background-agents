@@ -1,6 +1,6 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getRouteAuthToken } from "@/lib/route-auth";
 import { controlPlaneFetch } from "@/lib/control-plane";
 import type { EnrichedRepository } from "@open-inspect/shared";
 
@@ -10,9 +10,9 @@ interface ControlPlaneReposResponse {
   cachedAt: string;
 }
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+export async function GET(req: NextRequest) {
+  const token = await getRouteAuthToken(req);
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

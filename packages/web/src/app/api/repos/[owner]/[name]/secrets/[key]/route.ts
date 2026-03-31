@@ -1,15 +1,14 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getRouteAuthToken } from "@/lib/route-auth";
 import { controlPlaneFetch } from "@/lib/control-plane";
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ owner: string; name: string; key: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const token = await getRouteAuthToken(request);
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -1,8 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { getToken } from "next-auth/jwt";
-import { authOptions } from "@/lib/auth";
+import { getRouteAuthToken, userFromAuthToken } from "@/lib/route-auth";
 import { controlPlaneFetch } from "@/lib/control-plane";
 import {
   buildControlPlanePath,
@@ -12,10 +10,10 @@ import {
 export async function GET(request: NextRequest) {
   const routeStart = Date.now();
 
-  const session = await getServerSession(authOptions);
+  const token = await getRouteAuthToken(request);
   const authMs = Date.now() - routeStart;
 
-  if (!session) {
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -44,20 +42,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
+  const token = await getRouteAuthToken(request);
+  if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
     const body = await request.json();
 
-    const jwt = await getToken({ req: request });
-    const accessToken = jwt?.accessToken as string | undefined;
+    const accessToken = token.accessToken as string | undefined;
 
     // Explicitly pick allowed fields from client body and derive identity
-    // from the server-side NextAuth session (not client-supplied data)
-    const user = session.user;
+    // from the server-side JWT (not client-supplied data)
+    const user = userFromAuthToken(token);
     const userId = user.id || user.email || "anonymous";
 
     const sessionBody = {
@@ -68,8 +65,8 @@ export async function POST(request: NextRequest) {
       branch: body.branch,
       title: body.title,
       scmToken: accessToken,
-      scmRefreshToken: jwt?.refreshToken as string | undefined,
-      scmTokenExpiresAt: jwt?.accessTokenExpiresAt as number | undefined,
+      scmRefreshToken: token.refreshToken as string | undefined,
+      scmTokenExpiresAt: token.accessTokenExpiresAt as number | undefined,
       scmUserId: user.id,
       userId,
       scmLogin: user.login,
