@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { requireInternalAuth } from "./auth";
+import { resolveRuntimeEnv } from "./runtime-env";
 import {
   buildRepoImageSandboxName,
   buildSessionSandboxName,
@@ -188,8 +189,9 @@ app.post("/api-create-sandbox", async (c) => {
     const persistentName = buildSessionSandboxName(body.session_id);
     const sandbox = await getOrCreatePersistentSandbox(persistentName);
     const responseSandboxId = body.sandbox_id || persistentName;
-    await syncRepository(sandbox, body, c.env);
-    await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
+    const env = resolveRuntimeEnv(c);
+    await syncRepository(sandbox, body, env);
+    await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, env);
 
     return c.json({
       success: true,
@@ -224,8 +226,9 @@ app.post("/api-restore-sandbox", async (c) => {
     const persistentName = buildSessionSandboxName(body.session_config.session_id);
     const sandbox = await resumeOrCreateFromSnapshot(body.snapshot_image_id ?? "", persistentName);
     const responseSandboxId = body.sandbox_id || persistentName;
-    await syncRepository(sandbox, body, c.env);
-    await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
+    const env = resolveRuntimeEnv(c);
+    await syncRepository(sandbox, body, env);
+    await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, env);
 
     return c.json({
       success: true,
@@ -315,8 +318,9 @@ app.post("/api-build-repo-image", async (c) => {
     sandbox_auth_token: "",
     user_env_vars: body.user_env_vars,
   };
-  await syncRepository(sandbox, createLikeBody, c.env);
-  await bootstrapRuntime(sandbox, createLikeBody, c.env);
+  const env = resolveRuntimeEnv(c);
+  await syncRepository(sandbox, createLikeBody, env);
+  await bootstrapRuntime(sandbox, createLikeBody, env);
 
   try {
     await callBuildCompleteCallback(body.callback_url, body.build_id, imageName);
