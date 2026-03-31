@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "prebuild": "npm run build --prefix ../shared",
-    "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js --platform=node --target=node22 --external:node:*",
+    "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js --platform=node --target=node22 --external:node:* --external:@vercel/sandbox",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "lint": "eslint src/",
