@@ -116,8 +116,16 @@ export const MODEL_OPTIONS: ModelCategory[] = [
   {
     category: "OpenAI",
     models: [
-      { id: "openai/gpt-5.4", name: "5.4", description: "Latest, most capable" },
-      { id: "openai/gpt-5.4-mini", name: "5.4 Mini", description: "Fast and affordable" },
+      {
+        id: "openai/gpt-5.4",
+        name: "5.4",
+        description: "Flagship frontier model for professional work",
+      },
+      {
+        id: "openai/gpt-5.4-mini",
+        name: "5.4 Mini",
+        description: "Fast, efficient mini for responsive coding and subagents",
+      },
       { id: "openai/gpt-5.3-codex", name: "5.3 Codex", description: "Fast and better for code" },
     ],
   },

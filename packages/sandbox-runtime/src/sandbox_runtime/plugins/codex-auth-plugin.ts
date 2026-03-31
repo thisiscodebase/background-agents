@@ -20,6 +20,7 @@ const ALLOWED_MODELS = new Set([
   "gpt-5.1-codex-mini",
   "gpt-5.2",
   "gpt-5.4",
+  "gpt-5.4-mini",
   "gpt-5.2-codex",
   "gpt-5.3-codex",
   "gpt-5.3-codex-spark",
@@ -134,6 +135,21 @@ export const CodexAuthProxy: Plugin = async (input) => {
           if (!ALLOWED_MODELS.has(modelId)) {
             delete provider.models[modelId];
           }
+        }
+
+        // Inject GPT 5.4 Mini if missing (recommended Codex model — fast mini for coding/subagents;
+        // https://developers.openai.com/codex/models )
+        if (!provider.models["gpt-5.4-mini"]) {
+          provider.models["gpt-5.4-mini"] = {
+            name: "GPT 5.4 Mini",
+            attachment: false,
+            reasoning: false,
+            temperature: false,
+            options: {},
+            variants: {},
+            limit: { context: 1000000, output: 1000000 },
+            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          };
         }
 
         // Inject GPT 5.3 Codex models if missing
