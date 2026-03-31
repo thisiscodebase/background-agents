@@ -155,6 +155,19 @@ nextauth_secret = ""
 # Vercel project becomes open-inspect-{deployment_name}; app URL adds .vercel.app by itself.
 deployment_name = ""
 
+# Optional: Vercel project slug (dashboard name), if not open-inspect-{deployment_name}.
+# vercel_web_project_name = "background-agents-web"
+#
+# Optional: production hostname when Vercel shows projectname-teamsuffix.vercel.app (not {slug}.vercel.app).
+# vercel_web_production_hostname = "background-agents-web-roan.vercel.app"
+#
+# Optional: Git repo for Vercel deploy-on-push (omit or set null for CLI/CI-only).
+# vercel_web_git_repository = {
+#   type  = "github"
+#   repo  = "your-org/your-repo"
+#   # production_branch = "main"  # optional, defaults to main
+# }
+
 # Path to project root (relative to this directory)
 project_root = "../../.."
 

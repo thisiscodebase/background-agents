@@ -67,8 +67,8 @@ output "github_bot_worker_name" {
 
 # Web App
 output "web_app_url" {
-  description = "Web app URL"
-  value       = var.web_platform == "vercel" ? module.web_app[0].production_url : local.web_app_url
+  description = "Web app URL (same value as NEXTAUTH_URL / WEB_APP_URL bindings)"
+  value       = local.web_app_url
 }
 
 output "web_app_platform" {

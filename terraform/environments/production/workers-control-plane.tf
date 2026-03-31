@@ -11,6 +11,7 @@ resource "null_resource" "control_plane_build" {
   }
 
   provisioner "local-exec" {
+    # control-plane `prebuild` compiles @open-inspect/shared first (esbuild reads shared/dist)
     command     = "npm run build"
     working_dir = "${local.repo_root}/packages/control-plane"
   }

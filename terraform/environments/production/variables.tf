@@ -317,7 +317,7 @@ variable "web_platform" {
 }
 
 variable "deployment_name" {
-  description = "Unique slug (not a URL). Used in worker names and, on Vercel, as open-inspect-{deployment_name}. Example: 'acme' → app at https://open-inspect-acme.vercel.app. Do not paste .vercel.app or full hostnames."
+  description = "Unique slug (not a URL). Used in Cloudflare worker names, D1 database name, and (by default) the Vercel web project open-inspect-{deployment_name}. Override the Vercel slug with vercel_web_project_name if the web app was created separately. Do not paste .vercel.app or full hostnames."
   type        = string
 
   validation {
@@ -326,7 +326,60 @@ variable "deployment_name" {
       && length(var.deployment_name) >= 1
       && length(var.deployment_name) <= 39
     )
-    error_message = "deployment_name must be a short slug: lowercase letters, digits, hyphens only (no dots). Max length 39 so the Vercel project name open-inspect-<name> stays within 52 characters. Example: 'myteam' — not 'myproject.vercel.app'."
+    error_message = "deployment_name must be a short slug: lowercase letters, digits, hyphens only (no dots). Max length 39 so the default Vercel project name open-inspect-<name> stays within 52 characters. Example: 'myteam' — not 'myproject.vercel.app'."
+  }
+}
+
+variable "vercel_web_project_name" {
+  description = "Vercel project slug (Settings → General), not the browser URL. Example: 'background-agents-web'. Team-scoped production URLs are often projectname-teamsuffix.vercel.app — set vercel_web_production_hostname when that differs from {slug}.vercel.app."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      var.vercel_web_project_name == ""
+      || (
+        can(regex("^[a-z0-9]+(-[a-z0-9]+)*$", var.vercel_web_project_name))
+        && length(var.vercel_web_project_name) >= 1
+        && length(var.vercel_web_project_name) <= 100
+      )
+    )
+    error_message = "vercel_web_project_name must be empty or a Vercel project slug: lowercase letters, digits, hyphens only, max 100 characters."
+  }
+}
+
+variable "vercel_web_production_hostname" {
+  description = "Public production hostname for the web app when it is not {vercel_web_project_name}.vercel.app (e.g. Vercel team URLs: background-agents-web-roan.vercel.app). No https://. Leave empty to derive https://{project-slug}.vercel.app from the project name."
+  type        = string
+  default     = ""
+
+  validation {
+    condition = (
+      trimspace(var.vercel_web_production_hostname) == ""
+      || (
+        !strcontains(var.vercel_web_production_hostname, "://")
+        && can(regex("^[a-z0-9][a-z0-9.-]*\\.vercel\\.app$", trimspace(var.vercel_web_production_hostname)))
+      )
+    )
+    error_message = "vercel_web_production_hostname must be empty or a hostname like my-app-teamslug.vercel.app (no https://, lowercase)."
+  }
+}
+
+variable "vercel_web_git_repository" {
+  description = "Git repo linked to the Vercel web project for deploy-on-push (production branch + previews). Null = no Git link (CLI/CI-only)."
+  type = object({
+    type                = string
+    repo                = string # owner/name, e.g. acme/my-app
+    production_branch   = optional(string, "main")
+  })
+  default = null
+
+  validation {
+    condition = (
+      var.vercel_web_git_repository == null
+      || contains(["github", "gitlab", "bitbucket"], var.vercel_web_git_repository.type)
+    )
+    error_message = "vercel_web_git_repository.type must be github, gitlab, or bitbucket."
   }
 }
 

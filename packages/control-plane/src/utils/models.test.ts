@@ -36,6 +36,7 @@ describe("model utilities", () => {
     it("returns true for OpenAI models", () => {
       expect(isValidModel("openai/gpt-5.2")).toBe(true);
       expect(isValidModel("openai/gpt-5.4")).toBe(true);
+      expect(isValidModel("openai/gpt-5.4-mini")).toBe(true);
       expect(isValidModel("openai/gpt-5.2-codex")).toBe(true);
       expect(isValidModel("openai/gpt-5.3-codex")).toBe(true);
       expect(isValidModel("openai/gpt-5.3-codex-spark")).toBe(true);
@@ -43,6 +44,7 @@ describe("model utilities", () => {
 
     it("accepts bare GPT model names via normalization", () => {
       expect(isValidModel("gpt-5.4")).toBe(true);
+      expect(isValidModel("gpt-5.4-mini")).toBe(true);
       expect(isValidModel("gpt-5.2")).toBe(true);
       expect(isValidModel("gpt-5.2-codex")).toBe(true);
       expect(isValidModel("gpt-5.3-codex")).toBe(true);

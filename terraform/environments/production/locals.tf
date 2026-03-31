@@ -4,6 +4,12 @@ locals {
   repo_root   = trimsuffix(var.project_root, "/")
   name_suffix = var.deployment_name
 
+  # Vercel web project slug: default open-inspect-{deployment_name}, or an existing project from tfvars.
+  vercel_web_project_slug = trimspace(var.vercel_web_project_name) != "" ? trimspace(var.vercel_web_project_name) : "open-inspect-${local.name_suffix}"
+
+  # Team-scoped Vercel URLs often use projectname-teamsuffix.vercel.app; optional override for NEXTAUTH_URL / WEB_APP_URL.
+  vercel_web_production_host = trimspace(var.vercel_web_production_hostname) != "" ? trimspace(var.vercel_web_production_hostname) : "${local.vercel_web_project_slug}.vercel.app"
+
   # URLs for cross-service configuration
   control_plane_host = "open-inspect-control-plane-${local.name_suffix}.${var.cloudflare_worker_subdomain}.workers.dev"
   control_plane_url  = "https://${local.control_plane_host}"
@@ -13,7 +19,7 @@ locals {
   web_app_url = var.web_platform == "cloudflare" ? (
     "https://open-inspect-web-${local.name_suffix}.${var.cloudflare_worker_subdomain}.workers.dev"
     ) : (
-    "https://open-inspect-${local.name_suffix}.vercel.app"
+    "https://${local.vercel_web_production_host}"
   )
 
   # Worker script paths (deterministic output locations)
