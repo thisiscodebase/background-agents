@@ -38,9 +38,12 @@ module "modal_app" {
   secrets = [
     {
       name = "llm-api-keys"
-      values = {
-        ANTHROPIC_API_KEY = var.anthropic_api_key
-      }
+      values = merge(
+        {
+          ANTHROPIC_API_KEY = var.anthropic_api_key
+        },
+        length(trimspace(var.openai_api_key)) > 0 ? { OPENAI_API_KEY = var.openai_api_key } : {}
+      )
     },
     {
       name = "github-app"

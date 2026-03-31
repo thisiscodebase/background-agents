@@ -77,8 +77,9 @@ Base image definition with:
 3. Create secrets via Modal CLI:
 
 ```bash
-# LLM API keys
+# LLM API keys (optional OPENAI_API_KEY for platform API — see docs/OPENAI_MODELS.md)
 modal secret create llm-api-keys ANTHROPIC_API_KEY="sk-ant-..."
+# modal secret create llm-api-keys ANTHROPIC_API_KEY="..." OPENAI_API_KEY="sk-..." --force
 
 # GitHub App credentials (for repo access)
 modal secret create github-app \
@@ -167,6 +168,7 @@ Set via Modal secrets:
 | Variable | Secret | Description |
 |----------|--------|-------------|
 | `ANTHROPIC_API_KEY` | `llm-api-keys` | Anthropic API key for Claude |
+| `OPENAI_API_KEY` | `llm-api-keys` | Optional OpenAI platform API key for GPT/Codex in sandboxes |
 | `GITHUB_APP_ID` | `github-app` | GitHub App ID for repo access |
 | `GITHUB_APP_PRIVATE_KEY` | `github-app` | GitHub App private key (PKCS#8) |
 | `GITHUB_APP_INSTALLATION_ID` | `github-app` | GitHub App installation ID |

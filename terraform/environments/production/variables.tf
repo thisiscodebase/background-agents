@@ -254,6 +254,13 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
+variable "openai_api_key" {
+  description = "Optional OpenAI API key for GPT/Codex models in sandboxes (standard OpenAI API). Omit or leave empty to use ChatGPT OAuth repo secrets instead; see docs/OPENAI_MODELS.md."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # =============================================================================
 # Security Secrets
 # =============================================================================

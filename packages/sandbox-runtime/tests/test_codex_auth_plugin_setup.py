@@ -42,7 +42,7 @@ class TestCodexAuthPluginSetup:
             ),
             patch("pathlib.Path.home", return_value=tmp_path),
         ):
-            sup._setup_openai_oauth()
+            sup._setup_openai_auth()
 
         data = json.loads(_auth_file(tmp_path).read_text())
         assert data["openai"]["refresh"] == "managed-by-control-plane"
@@ -65,7 +65,7 @@ class TestCodexAuthPluginSetup:
             ),
             patch("pathlib.Path.home", return_value=tmp_path),
         ):
-            sup._setup_openai_oauth()
+            sup._setup_openai_auth()
 
         data = json.loads(_auth_file(tmp_path).read_text())
         assert data["openai"]["refresh"] == "managed-by-control-plane"

@@ -120,6 +120,10 @@ linear_webhook_secret = ""   # Webhook Signing Secret from the application confi
 # From: https://console.anthropic.com/
 anthropic_api_key = ""
 
+# Optional: OpenAI API key for GPT/Codex via the standard OpenAI API (platform billing).
+# Leave empty to use ChatGPT OAuth (repo secrets) instead — see docs/OPENAI_MODELS.md.
+# openai_api_key = ""
+
 # =============================================================================
 # Security Secrets
 # =============================================================================

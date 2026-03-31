@@ -186,8 +186,10 @@ github_app_private_key       = <<-EOF
 -----END PRIVATE KEY-----
 EOF
 
-# AI key
+# AI keys
 anthropic_api_key = "<anthropic-key>"
+# Optional: OpenAI platform API for GPT/Codex in sandboxes (see docs/OPENAI_MODELS.md)
+# openai_api_key = "<openai-key>"
 
 # Required secrets
 token_encryption_key        = "<openssl rand -base64 32>"

@@ -21,7 +21,22 @@ high for Codex models).
 
 ---
 
-## Setup
+## Authentication: OAuth vs API key
+
+You can use **one** of these (not both at once for a given sandbox):
+
+| Method             | Best for                                               | How credentials reach the sandbox                                                                |
+| ------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| **ChatGPT OAuth**  | ChatGPT Plus/Pro subscription (Codex via ChatGPT)      | Repository secrets (refresh token); control plane issues short-lived tokens                      |
+| **OpenAI API key** | OpenAI Platform API billing (`sk-proj-...` / `sk-...`) | Global or repo secret `OPENAI_API_KEY`, and/or Terraform `openai_api_key` → Modal `llm-api-keys` |
+
+**Precedence:** If `OPENAI_OAUTH_REFRESH_TOKEN` is set in the merged environment (from repo/global
+secrets), OAuth is used and the ChatGPT/Codex proxy plugin is enabled. Otherwise, if
+`OPENAI_API_KEY` is set, OpenCode uses the **standard OpenAI HTTP API** (no ChatGPT OAuth flow).
+
+---
+
+## Setup A: ChatGPT OAuth (subscription)
 
 ### Step 1: Obtain OpenAI OAuth Credentials
 
@@ -60,7 +75,40 @@ models will automatically use your configured credentials.
 
 ---
 
+## Setup B: OpenAI API key (platform API)
+
+Use this when you have an API key from [OpenAI Platform](https://platform.openai.com/) and want
+billing on your developer account instead of ChatGPT OAuth.
+
+1. **Repository or global secrets (recommended for per-repo keys)**  
+   In **Settings → Secrets**, add:
+
+   | Secret Name      | Value             |
+   | ---------------- | ----------------- |
+   | `OPENAI_API_KEY` | Your `sk-...` key |
+
+   Repo secrets override global secrets for the same key (same rules as other env secrets).
+
+2. **Terraform / Modal (optional, like `anthropic_api_key`)**  
+   Set `openai_api_key` in `terraform.tfvars` (or `TF_VAR_openai_api_key` / GitHub secret
+   `OPENAI_API_KEY` in CI). Terraform merges it into the Modal secret `llm-api-keys`, so every
+   sandbox receives `OPENAI_API_KEY` in its environment.
+
+3. **Local Modal testing**  
+   Add the key to the `llm-api-keys` secret:
+
+   ```bash
+   modal secret create llm-api-keys ANTHROPIC_API_KEY="..." OPENAI_API_KEY="sk-..." --force
+   ```
+
+Do **not** set `OPENAI_OAUTH_REFRESH_TOKEN` if you intend to use API-key mode only; if both are
+present, OAuth takes precedence.
+
+---
+
 ## How It Works
+
+### OAuth mode
 
 Your refresh token is stored securely in the control plane and is never exposed to sandboxes. When a
 sandbox needs to make an OpenAI API call, it requests a short-lived access token from the control
@@ -68,6 +116,12 @@ plane, which handles token refresh and rotation automatically. Only the temporar
 present inside the sandbox.
 
 Credentials are scoped per repository, so different repos can use different OpenAI accounts.
+
+### API key mode
+
+The supervisor writes OpenCode’s `auth.json` with `"type": "api"` and your key. OpenCode talks to
+the standard OpenAI API. The Codex OAuth proxy plugin is **not** loaded, so requests are not routed
+through `chatgpt.com` backend endpoints.
 
 ---
 
@@ -78,13 +132,19 @@ Credentials are scoped per repository, so different repos can use different Open
 Ensure your deployment is up to date. OpenAI model support requires the latest version of
 Open-Inspect.
 
-### Session fails to start with an OpenAI model
+### Session fails to start with an OpenAI model (OAuth)
 
 Verify that both `OPENAI_OAUTH_REFRESH_TOKEN` and `OPENAI_OAUTH_ACCOUNT_ID` are set in your
-repository secrets (Settings page). The refresh token may have expired — repeat Step 1 to obtain
-fresh credentials.
+repository secrets (Settings page). The refresh token may have expired — repeat OAuth Step 1 to
+obtain fresh credentials.
 
-### "Token refresh failed" errors
+### Session fails with an API key
 
-The OAuth refresh token may have been revoked or expired. Re-authenticate by repeating Step 1 and
-updating the secrets in your Settings page.
+- Confirm `OPENAI_API_KEY` is set (repo/global secret and/or Modal `llm-api-keys`) and that
+  `OPENAI_OAUTH_REFRESH_TOKEN` is **unset** if you want API-key mode.
+- Ensure the key has access to the models you selected on the OpenAI Platform.
+
+### "Token refresh failed" errors (OAuth)
+
+The OAuth refresh token may have been revoked or expired. Re-authenticate using Setup A and update
+the secrets in your Settings page.

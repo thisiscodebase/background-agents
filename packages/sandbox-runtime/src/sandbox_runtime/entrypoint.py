@@ -307,42 +307,51 @@ class SandboxSupervisor:
         if not package_json.exists():
             package_json.write_text('{"name": "opencode-tools", "type": "module"}')
 
-    def _setup_openai_oauth(self) -> None:
-        """Write OpenCode auth.json for ChatGPT OAuth if refresh token is configured."""
+    def _atomic_write_opencode_auth_json(self, payload: dict) -> None:
+        """Write ~/.local/share/opencode/auth.json atomically with 0o600."""
+        auth_dir = Path.home() / ".local" / "share" / "opencode"
+        auth_dir.mkdir(parents=True, exist_ok=True)
+
+        auth_file = auth_dir / "auth.json"
+        tmp_file = auth_dir / ".auth.json.tmp"
+
+        fd = os.open(str(tmp_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, json.dumps(payload).encode())
+        finally:
+            os.close(fd)
+        tmp_file.replace(auth_file)
+
+    def _setup_openai_auth(self) -> None:
+        """Write OpenCode auth.json for OpenAI (OAuth via control plane, or API key).
+
+        If OPENAI_OAUTH_REFRESH_TOKEN is set, OAuth wins and the codex proxy plugin is used.
+        Otherwise, if OPENAI_API_KEY is set, OpenCode uses the standard OpenAI API (no ChatGPT OAuth).
+        """
         refresh_token = os.environ.get("OPENAI_OAUTH_REFRESH_TOKEN")
-        if not refresh_token:
+        api_key = (os.environ.get("OPENAI_API_KEY") or "").strip()
+
+        if not refresh_token and not api_key:
             return
 
         try:
-            auth_dir = Path.home() / ".local" / "share" / "opencode"
-            auth_dir.mkdir(parents=True, exist_ok=True)
-
-            openai_entry = {
-                "type": "oauth",
-                "refresh": "managed-by-control-plane",
-                "access": "",
-                "expires": 0,
-            }
-
-            account_id = os.environ.get("OPENAI_OAUTH_ACCOUNT_ID")
-            if account_id:
-                openai_entry["accountId"] = account_id
-
-            auth_file = auth_dir / "auth.json"
-            tmp_file = auth_dir / ".auth.json.tmp"
-
-            # Write to a temp file created with 0o600 from the start, then
-            # atomically rename so the target is never world-readable.
-            fd = os.open(str(tmp_file), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            try:
-                os.write(fd, json.dumps({"openai": openai_entry}).encode())
-            finally:
-                os.close(fd)
-            tmp_file.replace(auth_file)
-
-            self.log.info("openai_oauth.setup")
+            if refresh_token:
+                openai_entry: dict = {
+                    "type": "oauth",
+                    "refresh": "managed-by-control-plane",
+                    "access": "",
+                    "expires": 0,
+                }
+                account_id = os.environ.get("OPENAI_OAUTH_ACCOUNT_ID")
+                if account_id:
+                    openai_entry["accountId"] = account_id
+                self._atomic_write_opencode_auth_json({"openai": openai_entry})
+                self.log.info("openai_auth.oauth")
+            else:
+                self._atomic_write_opencode_auth_json({"openai": {"type": "api", "key": api_key}})
+                self.log.info("openai_auth.api_key")
         except Exception as e:
-            self.log.warn("openai_oauth.setup_error", exc=e)
+            self.log.warn("openai_auth.setup_error", exc=e)
 
     async def start_code_server(self) -> None:
         """Start code-server for browser-based VS Code editing."""
@@ -386,7 +395,7 @@ class SandboxSupervisor:
 
     async def start_opencode(self) -> None:
         """Start OpenCode server with configuration."""
-        self._setup_openai_oauth()
+        self._setup_openai_auth()
         self.log.info("opencode.start")
 
         # Build OpenCode config from session settings

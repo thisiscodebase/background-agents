@@ -17,6 +17,7 @@ export const VALID_MODELS = [
   "anthropic/claude-opus-4-6",
   "openai/gpt-5.2",
   "openai/gpt-5.4",
+  "openai/gpt-5.4-mini",
   "openai/gpt-5.2-codex",
   "openai/gpt-5.3-codex",
   "openai/gpt-5.3-codex-spark",
@@ -58,6 +59,10 @@ export const MODEL_REASONING_CONFIG: Partial<Record<ValidModel, ModelReasoningCo
   "anthropic/claude-opus-4-6": { efforts: ["low", "medium", "high", "max"], default: "high" },
   "openai/gpt-5.2": { efforts: ["none", "low", "medium", "high", "xhigh"], default: undefined },
   "openai/gpt-5.4": { efforts: ["none", "low", "medium", "high", "xhigh"], default: undefined },
+  "openai/gpt-5.4-mini": {
+    efforts: ["none", "low", "medium", "high", "xhigh"],
+    default: undefined,
+  },
   "openai/gpt-5.2-codex": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
   "openai/gpt-5.3-codex": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
   "openai/gpt-5.3-codex-spark": { efforts: ["low", "medium", "high", "xhigh"], default: "high" },
@@ -83,27 +88,27 @@ export const MODEL_OPTIONS: ModelCategory[] = [
     models: [
       {
         id: "anthropic/claude-haiku-4-5",
-        name: "Claude Haiku 4.5",
+        name: "Haiku",
         description: "Fast and efficient",
       },
-      {
-        id: "anthropic/claude-sonnet-4-5",
-        name: "Claude Sonnet 4.5",
-        description: "Balanced performance",
-      },
+      // {
+      //   id: "anthropic/claude-sonnet-4-5",
+      //   name: "Sonnet 4.5",
+      //   description: "Balanced performance",
+      // },
       {
         id: "anthropic/claude-sonnet-4-6",
-        name: "Claude Sonnet 4.6",
+        name: "Sonnet",
         description: "Latest balanced, fast coding",
       },
-      {
-        id: "anthropic/claude-opus-4-5",
-        name: "Claude Opus 4.5",
-        description: "Most capable",
-      },
+      // {
+      //   id: "anthropic/claude-opus-4-5",
+      //   name: "Opus 4.5",
+      //   description: "Most capable",
+      // },
       {
         id: "anthropic/claude-opus-4-6",
-        name: "Claude Opus 4.6",
+        name: "Opus",
         description: "Latest, most capable",
       },
     ],
@@ -111,15 +116,9 @@ export const MODEL_OPTIONS: ModelCategory[] = [
   {
     category: "OpenAI",
     models: [
-      { id: "openai/gpt-5.2", name: "GPT 5.2", description: "400K context, fast" },
-      { id: "openai/gpt-5.4", name: "GPT 5.4", description: "Latest flagship model" },
-      { id: "openai/gpt-5.2-codex", name: "GPT 5.2 Codex", description: "Optimized for code" },
-      { id: "openai/gpt-5.3-codex", name: "GPT 5.3 Codex", description: "Latest codex" },
-      {
-        id: "openai/gpt-5.3-codex-spark",
-        name: "GPT 5.3 Codex Spark",
-        description: "Low-latency codex variant",
-      },
+      { id: "openai/gpt-5.4", name: "5.4", description: "Latest, most capable" },
+      { id: "openai/gpt-5.4-mini", name: "5.4 Mini", description: "Fast and affordable" },
+      { id: "openai/gpt-5.3-codex", name: "5.3 Codex", description: "Fast and better for code" },
     ],
   },
   {
@@ -138,13 +137,13 @@ export const MODEL_OPTIONS: ModelCategory[] = [
  */
 export const DEFAULT_ENABLED_MODELS: ValidModel[] = [
   "anthropic/claude-haiku-4-5",
-  "anthropic/claude-sonnet-4-5",
+  // "anthropic/claude-sonnet-4-5",
   "anthropic/claude-sonnet-4-6",
-  "anthropic/claude-opus-4-5",
+  // "anthropic/claude-opus-4-5",
   "anthropic/claude-opus-4-6",
-  "openai/gpt-5.2",
+  // "openai/gpt-5.2",
   "openai/gpt-5.4",
-  "openai/gpt-5.2-codex",
+  "openai/gpt-5.4-mini",
   "openai/gpt-5.3-codex",
   "openai/gpt-5.3-codex-spark",
 ];
