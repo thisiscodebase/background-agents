@@ -4,11 +4,11 @@ This is the primary setup guide for users and contributors.
 
 It is organized by goal so you can pick the fastest path:
 
-| Path   | Best For                                                 | Time       |
-| ------ | -------------------------------------------------------- | ---------- |
-| Path A | Run the web app locally against an existing backend      | ~10-20 min |
-| Path B | Contribute code locally (lint/typecheck/tests)           | ~15-30 min |
-| Path C | Deploy your own full stack (Cloudflare + Modal + Vercel) | ~1-3 hours |
+| Path   | Best For                                                          | Time       |
+| ------ | ----------------------------------------------------------------- | ---------- |
+| Path A | Run the web app locally against an existing backend               | ~10-20 min |
+| Path B | Contribute code locally (lint/typecheck/tests)                    | ~15-30 min |
+| Path C | Deploy your own full stack (Cloudflare + Vercel Sandbox + Vercel) | ~1-3 hours |
 
 ## Important Context
 
@@ -24,7 +24,7 @@ Required:
 - npm
 - Git
 
-Optional (needed for `modal-infra` development):
+Optional (needed for legacy `modal-infra` development):
 
 - Python `3.12+`
 - `uv` (recommended) or `pip`
@@ -60,7 +60,7 @@ What this does:
 
 ## Path A: Run the Web App Locally (Recommended Quick Start)
 
-Use this when you already have a deployed control plane and Modal backend, and only need local UI
+Use this when you already have a deployed control plane and sandbox backend, and only need local UI
 development.
 
 ### 1. Create local env file
@@ -188,6 +188,7 @@ pytest tests/ -v
 For full infrastructure setup, use:
 
 - [docs/GETTING_STARTED.md](./GETTING_STARTED.md)
+- [docs/DEPLOY_FROM_SCRATCH.md](./DEPLOY_FROM_SCRATCH.md) (new day-0 guide for Vercel Sandbox path)
 
 Critical notes before deploy:
 
@@ -216,7 +217,8 @@ For deployed control plane use `wss://...`, for local control plane use `ws://..
 
 ### Prompts queue but no sandbox work happens
 
-Control plane cannot reach Modal (or Modal is not properly configured/deployed).
+Control plane cannot reach the configured sandbox runtime service (or it is not properly
+configured/deployed).
 
 ## Related Docs
 

@@ -910,7 +910,13 @@ function SessionContent({
                 value={prompt}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isProcessing ? "Type your next message..." : "Ask or build anything"}
+                placeholder={
+                  isProcessing
+                    ? "Type your next message..."
+                    : sessionState?.sandboxStatus === "stopped"
+                      ? "Ask a follow-up to resume this sandbox"
+                      : "Ask or build anything"
+                }
                 className="w-full resize-none bg-transparent px-4 pt-4 pb-12 focus:outline-none text-foreground placeholder:text-secondary-foreground"
                 rows={3}
               />
@@ -1036,7 +1042,15 @@ function SandboxStatus({ status }: { status?: string }) {
     failed: "text-red-600 dark:text-red-500",
   };
 
-  return <span className={`text-xs ${colors[status] || colors.pending}`}>Sandbox: {status}</span>;
+  const labels: Record<string, string> = {
+    stopped: "paused",
+  };
+
+  return (
+    <span className={`text-xs ${colors[status] || colors.pending}`}>
+      Sandbox: {labels[status] || status}
+    </span>
+  );
 }
 
 function CombinedStatusDot({
@@ -1065,6 +1079,9 @@ function CombinedStatusDot({
   } else if (["pending", "warming", "syncing"].includes(sandboxStatus || "")) {
     color = "bg-yellow-500";
     label = `Connected \u00b7 Sandbox: ${sandboxStatus}`;
+  } else if (sandboxStatus === "stopped") {
+    color = "bg-muted-foreground";
+    label = "Connected \u00b7 Sandbox: paused";
   } else {
     color = "bg-success";
     label = sandboxStatus ? `Connected \u00b7 Sandbox: ${sandboxStatus}` : "Connected";

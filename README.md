@@ -89,7 +89,7 @@ built for internal use where all employees are trusted and have access to compan
                                  │
                                  ▼
 ┌────────────────────────────────────────────────────────────────────┐
-│                      Data Plane (Modal)                             │
+│                 Data Plane (Vercel Sandbox)                         │
 │  ┌──────────────────────────────────────────────────────────────┐  │
 │  │                     Session Sandbox                           │  │
 │  │  ┌───────────┐  ┌───────────┐  ┌───────────┐                 │  │
@@ -106,7 +106,8 @@ built for internal use where all employees are trusted and have access to compan
 
 | Package                                 | Description                          |
 | --------------------------------------- | ------------------------------------ |
-| [modal-infra](packages/modal-infra)     | Modal sandbox infrastructure         |
+| [vercel-infra](packages/vercel-infra)   | Vercel Sandbox compatibility service |
+| [modal-infra](packages/modal-infra)     | Legacy Modal sandbox infrastructure  |
 | [control-plane](packages/control-plane) | Cloudflare Workers + Durable Objects |
 | [web](packages/web)                     | Next.js web client                   |
 | [shared](packages/shared)               | Shared types and utilities           |
@@ -115,6 +116,9 @@ built for internal use where all employees are trusted and have access to compan
 
 For a practical setup guide (local + contributor + deployment paths), start with
 **[docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)**.
+
+For a fresh "I only have a Vercel account" deployment walkthrough, use
+**[docs/DEPLOY_FROM_SCRATCH.md](docs/DEPLOY_FROM_SCRATCH.md)**.
 
 See **[docs/GETTING_STARTED.md](docs/GETTING_STARTED.md)** for deployment instructions.
 
@@ -127,7 +131,7 @@ To set up recurring scheduled tasks, see **[docs/AUTOMATIONS.md](docs/AUTOMATION
 
 ### Fast Startup
 
-Sessions start near-instantly using Modal filesystem snapshots:
+Sessions start near-instantly using persistent sandbox resume and snapshot-compatible flows:
 
 - Images rebuilt every 30 minutes with latest code
 - Dependencies pre-installed and cached
@@ -201,7 +205,7 @@ MIT
 Inspired by [Ramp's Inspect](https://builders.ramp.com/post/why-we-built-our-background-agent) and
 built with:
 
-- [Modal](https://modal.com) - Cloud sandbox infrastructure
+- [Vercel Sandbox](https://vercel.com/docs/vercel-sandbox) - Cloud sandbox infrastructure
 - [Cloudflare Workers](https://workers.cloudflare.com) - Edge computing
 - [OpenCode](https://opencode.ai) - Coding agent runtime
 - [Next.js](https://nextjs.org) - Web framework

@@ -1,0 +1,32 @@
+{
+  "rewrites": [
+    {
+      "source": "/api-health",
+      "destination": "/api/api-health"
+    },
+    {
+      "source": "/api-create-sandbox",
+      "destination": "/api/api-create-sandbox"
+    },
+    {
+      "source": "/api-restore-sandbox",
+      "destination": "/api/api-restore-sandbox"
+    },
+    {
+      "source": "/api-snapshot-sandbox",
+      "destination": "/api/api-snapshot-sandbox"
+    },
+    {
+      "source": "/api-warm-sandbox",
+      "destination": "/api/api-warm-sandbox"
+    },
+    {
+      "source": "/api-build-repo-image",
+      "destination": "/api/api-build-repo-image"
+    },
+    {
+      "source": "/api-delete-provider-image",
+      "destination": "/api/api-delete-provider-image"
+    }
+  ]
+}

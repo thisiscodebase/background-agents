@@ -12,6 +12,11 @@ export {
   type WarmSandboxResponse,
   type SnapshotInfo,
 } from "./client";
+export {
+  VercelCompatApiError,
+  VercelCompatClient,
+  createVercelCompatClient,
+} from "./vercel-client";
 
 // Provider interface
 export {
@@ -30,6 +35,7 @@ export {
 
 // Modal provider
 export { ModalSandboxProvider, createModalProvider } from "./providers/modal-provider";
+export { VercelSandboxProvider, createVercelProvider } from "./providers/vercel-provider";
 
 // Lifecycle decisions
 export {

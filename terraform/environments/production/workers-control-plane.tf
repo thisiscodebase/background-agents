@@ -58,6 +58,8 @@ module "control_plane_worker" {
     { name = "GITHUB_CLIENT_ID", value = var.github_client_id },
     { name = "WEB_APP_URL", value = local.web_app_url },
     { name = "WORKER_URL", value = local.control_plane_url },
+    { name = "SANDBOX_PROVIDER", value = var.sandbox_provider },
+    { name = "SANDBOX_API_BASE_URL", value = var.sandbox_api_base_url },
     { name = "MODAL_WORKSPACE", value = var.modal_workspace },
     { name = "DEPLOYMENT_NAME", value = var.deployment_name },
   ]
@@ -69,6 +71,7 @@ module "control_plane_worker" {
     { name = "MODAL_TOKEN_ID", value = var.modal_token_id },
     { name = "MODAL_TOKEN_SECRET", value = var.modal_token_secret },
     { name = "MODAL_API_SECRET", value = var.modal_api_secret },
+    { name = "SANDBOX_API_SECRET", value = var.sandbox_api_secret },
     { name = "INTERNAL_CALLBACK_SECRET", value = var.internal_callback_secret },
     # GitHub App credentials for /repos endpoint (listInstallationRepositories)
     { name = "GITHUB_APP_ID", value = var.github_app_id },

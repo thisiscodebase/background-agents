@@ -182,6 +182,11 @@ export class SessionMessageQueue {
     }
 
     const author = this.deps.repository.getParticipantById(message.author_id);
+    const fallbackUserId = author?.user_id ?? "unknown";
+    const commitAuthorName = author?.scm_name ?? author?.scm_login ?? fallbackUserId;
+    const commitAuthorEmail =
+      author?.scm_email ??
+      `${fallbackUserId.replace(/[^a-zA-Z0-9_.-]/g, "-")}@open-inspect.internal`;
     const session = this.deps.getSession();
     const resolvedModel = getValidModelOrDefault(message.model || session?.model);
     const resolvedEffort =
@@ -196,9 +201,9 @@ export class SessionMessageQueue {
       model: resolvedModel,
       reasoningEffort: resolvedEffort,
       author: {
-        userId: author?.user_id ?? "unknown",
-        scmName: author?.scm_name ?? null,
-        scmEmail: author?.scm_email ?? null,
+        userId: fallbackUserId,
+        scmName: commitAuthorName,
+        scmEmail: commitAuthorEmail,
       },
       attachments: message.attachments ? JSON.parse(message.attachments) : undefined,
     };

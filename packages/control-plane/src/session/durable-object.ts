@@ -14,7 +14,10 @@ import { timingSafeEqual } from "@open-inspect/shared";
 import { generateId, hashToken, encryptToken, decryptToken } from "../auth/crypto";
 import { getGitHubAppConfig } from "../auth/github-app";
 import { createModalClient } from "../sandbox/client";
+import type { SandboxProvider } from "../sandbox/provider";
 import { createModalProvider } from "../sandbox/providers/modal-provider";
+import { createVercelCompatClient } from "../sandbox/vercel-client";
+import { createVercelProvider } from "../sandbox/providers/vercel-provider";
 import { createLogger, parseLogLevel } from "../logger";
 import type { Logger } from "../logger";
 import {
@@ -528,14 +531,27 @@ export class SessionDO extends DurableObject<Env> {
    * Create the lifecycle manager with all required adapters.
    */
   private createLifecycleManager(): SandboxLifecycleManager {
-    // Verify Modal configuration
-    if (!this.env.MODAL_API_SECRET || !this.env.MODAL_WORKSPACE) {
-      throw new Error("MODAL_API_SECRET and MODAL_WORKSPACE are required for lifecycle manager");
+    const sandboxProviderName = (this.env.SANDBOX_PROVIDER || "vercel").toLowerCase();
+    let provider: SandboxProvider;
+    if (sandboxProviderName === "modal") {
+      if (!this.env.MODAL_API_SECRET || !this.env.MODAL_WORKSPACE) {
+        throw new Error(
+          "MODAL_API_SECRET and MODAL_WORKSPACE are required when SANDBOX_PROVIDER=modal"
+        );
+      }
+      provider = createModalProvider(
+        createModalClient(this.env.MODAL_API_SECRET, this.env.MODAL_WORKSPACE)
+      );
+    } else {
+      if (!this.env.SANDBOX_API_SECRET || !this.env.SANDBOX_API_BASE_URL) {
+        throw new Error(
+          "SANDBOX_API_SECRET and SANDBOX_API_BASE_URL are required when SANDBOX_PROVIDER=vercel"
+        );
+      }
+      provider = createVercelProvider(
+        createVercelCompatClient(this.env.SANDBOX_API_SECRET, this.env.SANDBOX_API_BASE_URL)
+      );
     }
-
-    // Create Modal provider
-    const modalClient = createModalClient(this.env.MODAL_API_SECRET, this.env.MODAL_WORKSPACE);
-    const provider = createModalProvider(modalClient);
 
     // Storage adapter
     const storage: SandboxStorage = {

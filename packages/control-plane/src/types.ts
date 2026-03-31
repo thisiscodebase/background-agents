@@ -57,6 +57,7 @@ export interface Env {
   MODAL_TOKEN_ID?: string;
   MODAL_TOKEN_SECRET?: string;
   MODAL_API_SECRET?: string; // Shared secret for authenticating with Modal endpoints
+  SANDBOX_API_SECRET?: string; // Shared secret for authenticating with sandbox compatibility API
   INTERNAL_CALLBACK_SECRET?: string; // For signing callbacks to slack-bot
 
   // GitHub App secrets (for git operations)
@@ -75,6 +76,8 @@ export interface Env {
   WEB_APP_URL?: string; // Base URL for the web app (for PR links)
   CF_ACCOUNT_ID?: string; // Cloudflare account ID
   MODAL_WORKSPACE?: string; // Modal workspace name (used in Modal endpoint URLs)
+  SANDBOX_API_BASE_URL?: string; // Base URL for sandbox compatibility API endpoints
+  SANDBOX_PROVIDER?: string; // "modal" | "vercel"
 
   // Sandbox lifecycle configuration
   SANDBOX_INACTIVITY_TIMEOUT_MS?: string; // Inactivity timeout in ms (default: 600000 = 10 min)

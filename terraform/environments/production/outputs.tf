@@ -84,12 +84,12 @@ output "web_app_project_id" {
 # Modal
 output "modal_app_name" {
   description = "Modal app name"
-  value       = module.modal_app.app_name
+  value       = var.sandbox_provider == "modal" ? module.modal_app[0].app_name : null
 }
 
 output "modal_health_url" {
   description = "Modal health check endpoint"
-  value       = module.modal_app.api_health_url
+  value       = var.sandbox_provider == "modal" ? module.modal_app[0].api_health_url : null
 }
 
 # =============================================================================
@@ -98,18 +98,30 @@ output "modal_health_url" {
 
 output "verification_commands" {
   description = "Commands to verify the deployment"
-  value       = <<-EOF
+  value = var.sandbox_provider == "modal" ? <<-EOF
 
     # 1. Health check control plane
     curl ${module.control_plane_worker.worker_url}/health
 
     # 2. Health check Modal
-    curl ${module.modal_app.api_health_url}
+    curl ${module.modal_app[0].api_health_url}
 
     # 3. Verify web app deployment
     curl ${local.web_app_url}
 
     # 4. Test authenticated endpoint (should return 401)
+    curl ${module.control_plane_worker.worker_url}/sessions
+
+  EOF
+  : <<-EOF
+
+    # 1. Health check control plane
+    curl ${module.control_plane_worker.worker_url}/health
+
+    # 2. Verify web app deployment
+    curl ${local.web_app_url}
+
+    # 3. Test authenticated endpoint (should return 401)
     curl ${module.control_plane_worker.worker_url}/sessions
 
   EOF

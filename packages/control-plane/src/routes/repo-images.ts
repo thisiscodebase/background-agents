@@ -14,6 +14,7 @@ import { GlobalSecretsStore } from "../db/global-secrets";
 import { RepoSecretsStore } from "../db/repo-secrets";
 import { mergeSecrets } from "../db/secrets-validation";
 import { createModalClient } from "../sandbox/client";
+import { createVercelCompatClient } from "../sandbox/vercel-client";
 import { createLogger } from "../logger";
 import type { Env } from "../types";
 import {
@@ -29,6 +30,10 @@ import {
 } from "./shared";
 
 const logger = createLogger("router:repo-images");
+
+function resolveSandboxProvider(env: Env): "modal" | "vercel" {
+  return (env.SANDBOX_PROVIDER || "vercel").toLowerCase() === "modal" ? "modal" : "vercel";
+}
 
 /**
  * POST /repo-images/build-complete
@@ -81,15 +86,25 @@ async function handleBuildComplete(
     });
 
     // Fire-and-forget: delete the replaced provider image if one was replaced
-    if (result.replacedImageId && env.MODAL_API_SECRET && env.MODAL_WORKSPACE) {
+    const replacedImageId = result.replacedImageId;
+    if (replacedImageId) {
       ctx.executionCtx?.waitUntil(
         (async () => {
           try {
-            const client = createModalClient(env.MODAL_API_SECRET!, env.MODAL_WORKSPACE!);
-            await client.deleteProviderImage({ providerImageId: result.replacedImageId! });
+            const provider = resolveSandboxProvider(env);
+            if (provider === "modal" && env.MODAL_API_SECRET && env.MODAL_WORKSPACE) {
+              const client = createModalClient(env.MODAL_API_SECRET, env.MODAL_WORKSPACE);
+              await client.deleteProviderImage({ providerImageId: replacedImageId });
+            } else if (env.SANDBOX_API_SECRET && env.SANDBOX_API_BASE_URL) {
+              const client = createVercelCompatClient(
+                env.SANDBOX_API_SECRET,
+                env.SANDBOX_API_BASE_URL
+              );
+              await client.deleteProviderImage({ providerImageId: replacedImageId });
+            }
           } catch (e) {
             logger.warn("repo_image.delete_old_failed", {
-              provider_image_id: result.replacedImageId,
+              provider_image_id: replacedImageId,
               error: e instanceof Error ? e.message : String(e),
             });
           }
@@ -168,11 +183,17 @@ async function handleTriggerBuild(
   if (!env.DB) {
     return error("Database not configured", 503);
   }
-  if (!env.MODAL_API_SECRET || !env.MODAL_WORKSPACE) {
-    return error("Modal configuration not available", 503);
-  }
   if (!env.WORKER_URL) {
     return error("WORKER_URL not configured", 503);
+  }
+
+  const provider = resolveSandboxProvider(env);
+  if (provider === "modal") {
+    if (!env.MODAL_API_SECRET || !env.MODAL_WORKSPACE) {
+      return error("Modal configuration not available", 503);
+    }
+  } else if (!env.SANDBOX_API_SECRET || !env.SANDBOX_API_BASE_URL) {
+    return error("Vercel compatibility sandbox configuration not available", 503);
   }
 
   const params = extractRepoParams(match);
@@ -242,9 +263,11 @@ async function handleTriggerBuild(
       }
     }
 
-    // Trigger build on Modal
-    const client = createModalClient(env.MODAL_API_SECRET, env.MODAL_WORKSPACE);
-    await client.buildRepoImage(
+    const buildClient =
+      provider === "modal"
+        ? createModalClient(env.MODAL_API_SECRET!, env.MODAL_WORKSPACE!)
+        : createVercelCompatClient(env.SANDBOX_API_SECRET!, env.SANDBOX_API_BASE_URL!);
+    await buildClient.buildRepoImage(
       {
         repoOwner: owner,
         repoName: name,
@@ -260,6 +283,7 @@ async function handleTriggerBuild(
       build_id: buildId,
       repo_owner: owner,
       repo_name: name,
+      provider,
       request_id: ctx.request_id,
       trace_id: ctx.trace_id,
     });

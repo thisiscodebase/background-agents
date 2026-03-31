@@ -1,0 +1,352 @@
+import { Hono } from "hono";
+import { handle } from "hono/vercel";
+import { requireInternalAuth } from "./auth";
+import {
+  buildRepoImageSandboxName,
+  buildSessionSandboxName,
+  getOrCreatePersistentSandbox,
+  resumeOrCreateFromSnapshot,
+  runShellCommand,
+} from "./sandbox";
+import type {
+  ApiEnvelope,
+  BuildRepoImageRequest,
+  CreateSandboxRequest,
+  DeleteProviderImageRequest,
+  Env,
+  RestoreSandboxRequest,
+  SnapshotSandboxRequest,
+} from "./types";
+
+const app = new Hono<{ Bindings: Env }>();
+
+function shellEscape(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function sanitizeEnvVarName(name: string): string | null {
+  return /^[A-Z_][A-Z0-9_]*$/.test(name) ? name : null;
+}
+
+async function parseJsonBody<T>(request: Request): Promise<T | null> {
+  try {
+    return (await request.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function isRestoreRequest(
+  request: CreateSandboxRequest | RestoreSandboxRequest
+): request is RestoreSandboxRequest {
+  return "session_config" in request;
+}
+
+async function syncRepository(
+  sandbox: any,
+  request: CreateSandboxRequest | RestoreSandboxRequest,
+  env: Env
+): Promise<void> {
+  const repoOwner = isRestoreRequest(request)
+    ? request.session_config?.repo_owner
+    : request.repo_owner;
+  const repoName = isRestoreRequest(request)
+    ? request.session_config?.repo_name
+    : request.repo_name;
+  const branch = isRestoreRequest(request) ? request.session_config?.branch : request.branch;
+
+  if (!repoOwner || !repoName) {
+    return;
+  }
+
+  const token = env.OPENINSPECT_GITHUB_TOKEN;
+  const cloneUrl = token
+    ? `https://x-access-token:${token}@github.com/${repoOwner}/${repoName}.git`
+    : `https://github.com/${repoOwner}/${repoName}.git`;
+  const branchName = branch || "main";
+  const repoDir = `/vercel/sandbox/workspaces/${repoName}`;
+
+  await runShellCommand(
+    sandbox,
+    [
+      "set -euo pipefail",
+      "mkdir -p /vercel/sandbox/workspaces",
+      `if [ ! -d ${shellEscape(repoDir)} ]; then git clone ${shellEscape(cloneUrl)} ${shellEscape(repoDir)}; fi`,
+      `cd ${shellEscape(repoDir)}`,
+      "git fetch --all --prune",
+      `git checkout ${shellEscape(branchName)} || true`,
+      "git pull --ff-only || true",
+    ].join(" && ")
+  );
+}
+
+async function bootstrapRuntime(
+  sandbox: any,
+  request: CreateSandboxRequest | RestoreSandboxRequest,
+  env: Env
+): Promise<void> {
+  const repoName = isRestoreRequest(request)
+    ? request.session_config?.repo_name
+    : request.repo_name;
+  const repoDir = repoName ? `/vercel/sandbox/workspaces/${repoName}` : "/vercel/sandbox";
+
+  const exports: string[] = [];
+  const setEnv = (key: string, value: string | undefined | null) => {
+    if (!value) return;
+    const safeKey = sanitizeEnvVarName(key);
+    if (!safeKey) return;
+    exports.push(`export ${safeKey}=${shellEscape(value)}`);
+  };
+
+  setEnv("CONTROL_PLANE_URL", request.control_plane_url);
+  setEnv("SANDBOX_AUTH_TOKEN", request.sandbox_auth_token);
+  if ("sandbox_id" in request) {
+    setEnv("SANDBOX_ID", request.sandbox_id ?? undefined);
+  }
+
+  const userEnvVars = request.user_env_vars ?? undefined;
+  if (userEnvVars) {
+    for (const [key, value] of Object.entries(userEnvVars)) {
+      setEnv(key, value);
+    }
+  }
+
+  if (env.OPENINSPECT_BOOTSTRAP_CMD) {
+    await runShellCommand(
+      sandbox,
+      [
+        "set -euo pipefail",
+        ...exports,
+        `cd ${shellEscape(repoDir)}`,
+        env.OPENINSPECT_BOOTSTRAP_CMD,
+      ].join(" && ")
+    );
+  }
+
+  if (env.OPENINSPECT_BRIDGE_BOOT_CMD) {
+    await runShellCommand(
+      sandbox,
+      [
+        ...exports,
+        `cd ${shellEscape(repoDir)}`,
+        `nohup bash -lc ${shellEscape(env.OPENINSPECT_BRIDGE_BOOT_CMD)} > /tmp/openinspect-bridge.log 2>&1 &`,
+      ].join(" && ")
+    );
+  }
+}
+
+async function callBuildCompleteCallback(
+  callbackUrl: string,
+  buildId: string,
+  providerImageId: string
+): Promise<void> {
+  await fetch(callbackUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      build_id: buildId,
+      provider_image_id: providerImageId,
+      base_sha: "",
+      build_duration_seconds: 0,
+    }),
+  });
+}
+
+app.get("/api-health", (c) => {
+  const response: ApiEnvelope<{ status: string; service: string }> = {
+    success: true,
+    data: { status: "healthy", service: "vercel-infra" },
+  };
+  return c.json(response);
+});
+
+app.get("/api-snapshot", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+  return c.json({ success: true, data: null });
+});
+
+app.post("/api-create-sandbox", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<CreateSandboxRequest>(c.req.raw);
+  if (!body?.session_id || !body.repo_owner || !body.repo_name) {
+    return c.json(
+      { success: false, error: "session_id, repo_owner, and repo_name are required" },
+      400
+    );
+  }
+
+  const persistentName = buildSessionSandboxName(body.session_id);
+  const sandbox = await getOrCreatePersistentSandbox(persistentName);
+  const responseSandboxId = body.sandbox_id || persistentName;
+  await syncRepository(sandbox, body, c.env);
+  await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
+
+  return c.json({
+    success: true,
+    data: {
+      sandbox_id: responseSandboxId,
+      modal_object_id: persistentName,
+      status: "warming",
+      created_at: Date.now(),
+    },
+  });
+});
+
+app.post("/api-restore-sandbox", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<RestoreSandboxRequest>(c.req.raw);
+  if (!body?.sandbox_id || !body.session_config?.session_id) {
+    return c.json(
+      { success: false, error: "sandbox_id and session_config.session_id are required" },
+      400
+    );
+  }
+
+  const persistentName = buildSessionSandboxName(body.session_config.session_id);
+  const sandbox = await resumeOrCreateFromSnapshot(body.snapshot_image_id ?? "", persistentName);
+  const responseSandboxId = body.sandbox_id || persistentName;
+  await syncRepository(sandbox, body, c.env);
+  await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, c.env);
+
+  return c.json({
+    success: true,
+    data: {
+      sandbox_id: responseSandboxId,
+      modal_object_id: persistentName,
+      status: "warming",
+    },
+  });
+});
+
+app.post("/api-snapshot-sandbox", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<SnapshotSandboxRequest>(c.req.raw);
+  if (!body?.sandbox_id) {
+    return c.json({ success: false, error: "sandbox_id is required" }, 400);
+  }
+
+  try {
+    const sandbox = await getOrCreatePersistentSandbox(body.sandbox_id);
+    if (typeof sandbox.stop === "function") {
+      await sandbox.stop();
+    }
+  } catch {
+    // Best-effort pause. Snapshot identity remains deterministic via sandbox name.
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      image_id: `persist:${body.sandbox_id}`,
+      reason: body.reason ?? "manual",
+    },
+  });
+});
+
+app.post("/api-warm-sandbox", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<CreateSandboxRequest>(c.req.raw);
+  if (!body?.repo_owner || !body.repo_name) {
+    return c.json({ success: false, error: "repo_owner and repo_name are required" }, 400);
+  }
+
+  const sandboxName = buildSessionSandboxName(`warm-${body.repo_owner}-${body.repo_name}`);
+  await getOrCreatePersistentSandbox(sandboxName);
+
+  return c.json({
+    success: true,
+    data: { sandbox_id: sandboxName, status: "warming" },
+  });
+});
+
+app.post("/api-build-repo-image", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<BuildRepoImageRequest>(c.req.raw);
+  if (!body?.repo_owner || !body.repo_name || !body.build_id || !body.callback_url) {
+    return c.json(
+      { success: false, error: "repo_owner, repo_name, build_id, and callback_url are required" },
+      400
+    );
+  }
+
+  const imageName = buildRepoImageSandboxName(body.repo_owner, body.repo_name, body.build_id);
+  const sandbox = await getOrCreatePersistentSandbox(imageName);
+
+  const createLikeBody: CreateSandboxRequest = {
+    session_id: `repo-build-${body.build_id}`,
+    sandbox_id: imageName,
+    repo_owner: body.repo_owner,
+    repo_name: body.repo_name,
+    branch: body.default_branch || "main",
+    control_plane_url: "",
+    sandbox_auth_token: "",
+    user_env_vars: body.user_env_vars,
+  };
+  await syncRepository(sandbox, createLikeBody, c.env);
+  await bootstrapRuntime(sandbox, createLikeBody, c.env);
+
+  try {
+    await callBuildCompleteCallback(body.callback_url, body.build_id, imageName);
+  } catch {
+    return c.json({ success: false, error: "Failed to call build callback" }, 502);
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      build_id: body.build_id,
+      status: "building",
+    },
+  });
+});
+
+app.post("/api-delete-provider-image", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<DeleteProviderImageRequest>(c.req.raw);
+  if (!body?.provider_image_id) {
+    return c.json({ success: false, error: "provider_image_id is required" }, 400);
+  }
+
+  try {
+    const sandbox = await getOrCreatePersistentSandbox(body.provider_image_id);
+    if (typeof sandbox.delete === "function") {
+      await sandbox.delete();
+    } else if (typeof sandbox.stop === "function") {
+      await sandbox.stop();
+    }
+  } catch {
+    // best-effort cleanup
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      provider_image_id: body.provider_image_id,
+      deleted: true,
+    },
+  });
+});
+
+export const GET = handle(app);
+export const POST = handle(app);
+export default app;

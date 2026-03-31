@@ -37,21 +37,73 @@ variable "vercel_team_id" {
   default     = "unused"
 }
 
+variable "sandbox_provider" {
+  description = "Sandbox provider used by control-plane: 'vercel' or 'modal'"
+  type        = string
+  default     = "vercel"
+
+  validation {
+    condition     = contains(["vercel", "modal"], var.sandbox_provider)
+    error_message = "sandbox_provider must be 'vercel' or 'modal'."
+  }
+}
+
+variable "sandbox_api_base_url" {
+  description = "Base URL for the sandbox compatibility API (required when sandbox_provider = 'vercel')"
+  type        = string
+  default     = ""
+
+  validation {
+    condition = var.sandbox_provider != "vercel" || length(trimspace(var.sandbox_api_base_url)) > 0
+    error_message = "sandbox_api_base_url must be set when sandbox_provider is 'vercel'."
+  }
+}
+
+variable "sandbox_api_secret" {
+  description = "Shared secret for control-plane -> sandbox API auth (required when sandbox_provider = 'vercel')"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition = var.sandbox_provider != "vercel" || length(trimspace(var.sandbox_api_secret)) > 0
+    error_message = "sandbox_api_secret must be set when sandbox_provider is 'vercel'."
+  }
+}
+
 variable "modal_token_id" {
   description = "Modal API token ID"
   type        = string
   sensitive   = true
+  default     = ""
+
+  validation {
+    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_token_id)) > 0
+    error_message = "modal_token_id must be set when sandbox_provider is 'modal'."
+  }
 }
 
 variable "modal_token_secret" {
   description = "Modal API token secret"
   type        = string
   sensitive   = true
+  default     = ""
+
+  validation {
+    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_token_secret)) > 0
+    error_message = "modal_token_secret must be set when sandbox_provider is 'modal'."
+  }
 }
 
 variable "modal_workspace" {
   description = "Modal workspace name (used in endpoint URLs)"
   type        = string
+  default     = ""
+
+  validation {
+    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_workspace)) > 0
+    error_message = "modal_workspace must be set when sandbox_provider is 'modal'."
+  }
 }
 
 # =============================================================================
@@ -228,6 +280,12 @@ variable "modal_api_secret" {
   description = "Shared secret for authenticating control plane to Modal API calls (generate with: openssl rand -hex 32)"
   type        = string
   sensitive   = true
+  default     = ""
+
+  validation {
+    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_api_secret)) > 0
+    error_message = "modal_api_secret must be set when sandbox_provider is 'modal'."
+  }
 }
 
 variable "nextauth_secret" {
