@@ -5,9 +5,7 @@
 # Build control-plane worker bundle (only runs during apply, not plan)
 resource "null_resource" "control_plane_build" {
   triggers = {
-    # Rebuild when source files change - use timestamp to always check
-    # In CI, this ensures fresh builds; locally, npm handles caching
-    always_run = timestamp()
+    bundle = local.worker_bundle_triggers.control_plane
   }
 
   provisioner "local-exec" {

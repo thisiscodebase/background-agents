@@ -7,7 +7,7 @@ resource "null_resource" "github_bot_build" {
   count = var.enable_github_bot ? 1 : 0
 
   triggers = {
-    always_run = timestamp()
+    bundle = local.worker_bundle_triggers.github_bot
   }
 
   provisioner "local-exec" {

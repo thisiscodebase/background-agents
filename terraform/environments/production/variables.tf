@@ -49,7 +49,7 @@ variable "sandbox_provider" {
 }
 
 variable "sandbox_api_base_url" {
-  description = "Base URL for the sandbox compatibility API (required when sandbox_provider = 'vercel')"
+  description = "Base URL for the sandbox compatibility API (required when sandbox_provider = 'vercel'). Include the scheme, e.g. https://your-infra.vercel.app — host-only values are normalized to https in the Worker, but Terraform examples use full URLs for clarity."
   type        = string
   default     = ""
 

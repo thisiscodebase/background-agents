@@ -7,7 +7,7 @@ resource "null_resource" "linear_bot_build" {
   count = var.enable_linear_bot ? 1 : 0
 
   triggers = {
-    always_run = timestamp()
+    bundle = local.worker_bundle_triggers.linear_bot
   }
 
   provisioner "local-exec" {

@@ -26,6 +26,21 @@ import type {
 
 const log = createLogger("vercel-compat-client");
 
+/**
+ * Workers `fetch` requires an absolute URL with a scheme. Host-only values like
+ * `my-app.vercel.app` throw "Invalid URL" unless prefixed with https://.
+ */
+export function normalizeSandboxApiBaseUrl(baseUrl: string): string {
+  const trimmed = baseUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) {
+    throw new Error("VercelCompatClient requires SANDBOX_API_BASE_URL");
+  }
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 interface CompatApiResponse<T> {
   success: boolean;
   data?: T;
@@ -59,11 +74,11 @@ export class VercelCompatClient {
     if (!secret) {
       throw new Error("VercelCompatClient requires SANDBOX_API_SECRET for authentication");
     }
-    if (!baseUrl) {
+    if (!baseUrl?.trim()) {
       throw new Error("VercelCompatClient requires SANDBOX_API_BASE_URL");
     }
 
-    const trimmedBaseUrl = baseUrl.replace(/\/$/, "");
+    const trimmedBaseUrl = normalizeSandboxApiBaseUrl(baseUrl);
     this.createSandboxUrl = `${trimmedBaseUrl}/api-create-sandbox`;
     this.warmSandboxUrl = `${trimmedBaseUrl}/api-warm-sandbox`;
     this.healthUrl = `${trimmedBaseUrl}/api-health`;

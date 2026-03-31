@@ -7,9 +7,7 @@ resource "null_resource" "slack_bot_build" {
   count = var.enable_slack_bot ? 1 : 0
 
   triggers = {
-    # Rebuild when source files change - use timestamp to always check
-    # In CI, this ensures fresh builds; locally, npm handles caching
-    always_run = timestamp()
+    bundle = local.worker_bundle_triggers.slack_bot
   }
 
   provisioner "local-exec" {

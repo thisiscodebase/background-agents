@@ -27,4 +27,14 @@ locals {
   slack_bot_script_path     = "${local.repo_root}/packages/slack-bot/dist/index.js"
   linear_bot_script_path    = "${local.repo_root}/packages/linear-bot/dist/index.js"
   github_bot_script_path    = "${local.repo_root}/packages/github-bot/dist/index.js"
+
+  # Hash of each esbuild output. Used as null_resource triggers instead of timestamp():
+  # timestamp() forces a rebuild every apply and can desync cloudflare_worker_version's
+  # planned module SHA from the file on disk (provider "inconsistent final plan").
+  worker_bundle_triggers = {
+    control_plane = fileexists(local.control_plane_script_path) ? filesha256(local.control_plane_script_path) : "missing"
+    slack_bot     = fileexists(local.slack_bot_script_path) ? filesha256(local.slack_bot_script_path) : "missing"
+    linear_bot    = fileexists(local.linear_bot_script_path) ? filesha256(local.linear_bot_script_path) : "missing"
+    github_bot    = fileexists(local.github_bot_script_path) ? filesha256(local.github_bot_script_path) : "missing"
+  }
 }
