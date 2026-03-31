@@ -145,15 +145,14 @@ nextauth_secret = ""
 # Configuration
 # =============================================================================
 
-# Unique deployment name (used in resource names and URLs)
-# IMPORTANT: This must be globally unique for Vercel URLs.
-# Use something unique like your GitHub username, company name, or a random suffix.
-# Example: "acme", "johndoe", "mycompany-prod"
-# The web app URL will be: https://open-inspect-{deployment_name}.vercel.app
+# Short slug only (1–39 chars, lowercase a–z, 0–9, hyphens). Not a hostname.
+# Wrong: background-agents-vercel-infra.vercel.app
+# Right: gilchrist, acme, myteam-prod
+# Vercel project becomes open-inspect-{deployment_name}; app URL adds .vercel.app by itself.
 deployment_name = ""
 
 # Path to project root (relative to this directory)
-project_root = "../../../"
+project_root = "../../.."
 
 # =============================================================================
 # Initial Deployment Flags

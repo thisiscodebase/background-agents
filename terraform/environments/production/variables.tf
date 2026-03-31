@@ -54,7 +54,7 @@ variable "sandbox_api_base_url" {
   default     = ""
 
   validation {
-    condition = var.sandbox_provider != "vercel" || length(trimspace(var.sandbox_api_base_url)) > 0
+    condition     = var.sandbox_provider != "vercel" || length(trimspace(var.sandbox_api_base_url)) > 0
     error_message = "sandbox_api_base_url must be set when sandbox_provider is 'vercel'."
   }
 }
@@ -66,7 +66,7 @@ variable "sandbox_api_secret" {
   default     = ""
 
   validation {
-    condition = var.sandbox_provider != "vercel" || length(trimspace(var.sandbox_api_secret)) > 0
+    condition     = var.sandbox_provider != "vercel" || length(trimspace(var.sandbox_api_secret)) > 0
     error_message = "sandbox_api_secret must be set when sandbox_provider is 'vercel'."
   }
 }
@@ -78,7 +78,7 @@ variable "modal_token_id" {
   default     = ""
 
   validation {
-    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_token_id)) > 0
+    condition     = var.sandbox_provider != "modal" || length(trimspace(var.modal_token_id)) > 0
     error_message = "modal_token_id must be set when sandbox_provider is 'modal'."
   }
 }
@@ -90,7 +90,7 @@ variable "modal_token_secret" {
   default     = ""
 
   validation {
-    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_token_secret)) > 0
+    condition     = var.sandbox_provider != "modal" || length(trimspace(var.modal_token_secret)) > 0
     error_message = "modal_token_secret must be set when sandbox_provider is 'modal'."
   }
 }
@@ -101,7 +101,7 @@ variable "modal_workspace" {
   default     = ""
 
   validation {
-    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_workspace)) > 0
+    condition     = var.sandbox_provider != "modal" || length(trimspace(var.modal_workspace)) > 0
     error_message = "modal_workspace must be set when sandbox_provider is 'modal'."
   }
 }
@@ -283,7 +283,7 @@ variable "modal_api_secret" {
   default     = ""
 
   validation {
-    condition = var.sandbox_provider != "modal" || length(trimspace(var.modal_api_secret)) > 0
+    condition     = var.sandbox_provider != "modal" || length(trimspace(var.modal_api_secret)) > 0
     error_message = "modal_api_secret must be set when sandbox_provider is 'modal'."
   }
 }
@@ -310,8 +310,17 @@ variable "web_platform" {
 }
 
 variable "deployment_name" {
-  description = "Unique deployment name used in URLs and resource names. Use something unique like your GitHub username or company name (e.g., 'acme', 'johndoe'). This will create URLs like: open-inspect-{deployment_name}.vercel.app"
+  description = "Unique slug (not a URL). Used in worker names and, on Vercel, as open-inspect-{deployment_name}. Example: 'acme' → app at https://open-inspect-acme.vercel.app. Do not paste .vercel.app or full hostnames."
   type        = string
+
+  validation {
+    condition = (
+      can(regex("^[a-z0-9]+(-[a-z0-9]+)*$", var.deployment_name))
+      && length(var.deployment_name) >= 1
+      && length(var.deployment_name) <= 39
+    )
+    error_message = "deployment_name must be a short slug: lowercase letters, digits, hyphens only (no dots). Max length 39 so the Vercel project name open-inspect-<name> stays within 52 characters. Example: 'myteam' — not 'myproject.vercel.app'."
+  }
 }
 
 variable "enable_durable_object_bindings" {
@@ -345,9 +354,9 @@ variable "enable_service_bindings" {
 }
 
 variable "project_root" {
-  description = "Root path to the project repository"
+  description = "Root path to the repository from this directory (no trailing slash preferred; trailing slashes are stripped)."
   type        = string
-  default     = "../../../"
+  default     = "../../.."
 }
 
 # =============================================================================

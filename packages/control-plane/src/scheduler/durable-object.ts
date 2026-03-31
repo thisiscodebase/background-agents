@@ -8,7 +8,7 @@
  * - RunComplete: callback from SessionDO on execution completion
  */
 
-import { DurableObject } from "cloudflare:workers";
+import { DurableObject } from "../cf-durable-object";
 import {
   nextCronOccurrence,
   matchesConditions,

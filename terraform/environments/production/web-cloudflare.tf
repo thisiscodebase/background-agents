@@ -12,7 +12,7 @@ resource "null_resource" "web_app_cloudflare_build" {
 
   provisioner "local-exec" {
     command     = "npm run build -w @open-inspect/shared && npm run build:cloudflare -w @open-inspect/web"
-    working_dir = var.project_root
+    working_dir = local.repo_root
 
     environment = {
       # NEXT_PUBLIC_* vars must be set at build time (inlined into client bundle)
@@ -36,7 +36,7 @@ resource "null_resource" "web_app_cloudflare_secrets" {
 
   provisioner "local-exec" {
     command     = "bash scripts/wrangler-secrets.sh"
-    working_dir = var.project_root
+    working_dir = local.repo_root
 
     environment = {
       CLOUDFLARE_API_TOKEN     = var.cloudflare_api_token
@@ -55,7 +55,7 @@ resource "null_resource" "web_app_cloudflare_secrets" {
 # This avoids mutating the checked-in wrangler.toml (which defaults to local dev).
 resource "local_file" "web_app_wrangler_production" {
   count    = var.web_platform == "cloudflare" ? 1 : 0
-  filename = "${var.project_root}/packages/web/wrangler.production.toml"
+  filename = "${local.repo_root}/packages/web/wrangler.production.toml"
   content  = <<-TOML
     name = "open-inspect-web-${local.name_suffix}"
     main = ".open-next/worker.js"
@@ -90,7 +90,7 @@ resource "null_resource" "web_app_cloudflare_deploy" {
 
   provisioner "local-exec" {
     command     = "npx wrangler deploy --config wrangler.production.toml"
-    working_dir = "${var.project_root}/packages/web"
+    working_dir = "${local.repo_root}/packages/web"
 
     environment = {
       CLOUDFLARE_API_TOKEN  = var.cloudflare_api_token

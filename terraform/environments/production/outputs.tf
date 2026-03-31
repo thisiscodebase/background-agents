@@ -98,31 +98,32 @@ output "modal_health_url" {
 
 output "verification_commands" {
   description = "Commands to verify the deployment"
-  value = var.sandbox_provider == "modal" ? <<-EOF
-
-    # 1. Health check control plane
-    curl ${module.control_plane_worker.worker_url}/health
-
-    # 2. Health check Modal
-    curl ${module.modal_app[0].api_health_url}
-
-    # 3. Verify web app deployment
-    curl ${local.web_app_url}
-
-    # 4. Test authenticated endpoint (should return 401)
-    curl ${module.control_plane_worker.worker_url}/sessions
-
-  EOF
-  : <<-EOF
-
-    # 1. Health check control plane
-    curl ${module.control_plane_worker.worker_url}/health
-
-    # 2. Verify web app deployment
-    curl ${local.web_app_url}
-
-    # 3. Test authenticated endpoint (should return 401)
-    curl ${module.control_plane_worker.worker_url}/sessions
-
-  EOF
+  # Ternary with two <<-EOF heredocs does not parse in HCL; use join() so only the
+  # selected branch is evaluated (e.g. modal_app is not referenced when using Vercel).
+  value = var.sandbox_provider == "modal" ? join("\n", [
+    "",
+    "    # 1. Health check control plane",
+    "    curl ${module.control_plane_worker.worker_url}/health",
+    "",
+    "    # 2. Health check Modal",
+    "    curl ${module.modal_app[0].api_health_url}",
+    "",
+    "    # 3. Verify web app deployment",
+    "    curl ${local.web_app_url}",
+    "",
+    "    # 4. Test authenticated endpoint (should return 401)",
+    "    curl ${module.control_plane_worker.worker_url}/sessions",
+    "",
+    ]) : join("\n", [
+    "",
+    "    # 1. Health check control plane",
+    "    curl ${module.control_plane_worker.worker_url}/health",
+    "",
+    "    # 2. Verify web app deployment",
+    "    curl ${local.web_app_url}",
+    "",
+    "    # 3. Test authenticated endpoint (should return 401)",
+    "    curl ${module.control_plane_worker.worker_url}/sessions",
+    "",
+  ])
 }

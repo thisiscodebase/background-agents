@@ -1,0 +1,4 @@
+{
+  "installCommand": "cd ../.. && npm install && npm run build -w @open-inspect/shared",
+  "buildCommand": "npm run build"
+}

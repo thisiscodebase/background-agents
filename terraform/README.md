@@ -221,8 +221,9 @@ Deploys a Cloudflare Worker with bindings using the native 3-resource pattern: `
 module "my_worker" {
   source = "../../modules/cloudflare-worker"
 
-  account_id  = var.cloudflare_account_id
-  worker_name = "my-worker"
+  account_id              = var.cloudflare_account_id
+  workers_dev_subdomain   = var.cloudflare_worker_subdomain
+  worker_name             = "my-worker"
   script_path = "dist/index.js"  # Path to bundled JS file
 
   kv_namespaces = [

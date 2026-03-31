@@ -3,6 +3,11 @@ variable "account_id" {
   type        = string
 }
 
+variable "workers_dev_subdomain" {
+  description = "Account Workers subdomain (dashboard: Workers → overview — the segment before .workers.dev, e.g. 'myaccount' for myaccount.workers.dev)"
+  type        = string
+}
+
 variable "zone_id" {
   description = "Cloudflare zone ID (required for routes and custom domains)"
   type        = string

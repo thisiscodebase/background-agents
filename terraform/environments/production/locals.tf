@@ -1,4 +1,7 @@
 locals {
+  # Strip trailing slash so "${local.repo_root}/packages/..." never becomes "...//packages"
+  # (double slashes break Cloudflare worker_version modules identity during apply).
+  repo_root   = trimsuffix(var.project_root, "/")
   name_suffix = var.deployment_name
 
   # URLs for cross-service configuration
@@ -14,8 +17,8 @@ locals {
   )
 
   # Worker script paths (deterministic output locations)
-  control_plane_script_path = "${var.project_root}/packages/control-plane/dist/index.js"
-  slack_bot_script_path     = "${var.project_root}/packages/slack-bot/dist/index.js"
-  linear_bot_script_path    = "${var.project_root}/packages/linear-bot/dist/index.js"
-  github_bot_script_path    = "${var.project_root}/packages/github-bot/dist/index.js"
+  control_plane_script_path = "${local.repo_root}/packages/control-plane/dist/index.js"
+  slack_bot_script_path     = "${local.repo_root}/packages/slack-bot/dist/index.js"
+  linear_bot_script_path    = "${local.repo_root}/packages/linear-bot/dist/index.js"
+  github_bot_script_path    = "${local.repo_root}/packages/github-bot/dist/index.js"
 }

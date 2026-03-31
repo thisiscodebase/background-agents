@@ -17,14 +17,14 @@ resource "null_resource" "d1_migrations" {
   triggers = {
     database_id = cloudflare_d1_database.main.id
     migrations_sha = sha256(join(",", [
-      for f in sort(fileset("${var.project_root}/terraform/d1/migrations", "*.sql")) :
-      filesha256("${var.project_root}/terraform/d1/migrations/${f}")
+      for f in sort(fileset("${local.repo_root}/terraform/d1/migrations", "*.sql")) :
+      filesha256("${local.repo_root}/terraform/d1/migrations/${f}")
     ]))
   }
 
   provisioner "local-exec" {
     command     = "bash scripts/d1-migrate.sh ${cloudflare_d1_database.main.name} terraform/d1/migrations"
-    working_dir = var.project_root
+    working_dir = local.repo_root
 
     environment = {
       CLOUDFLARE_ACCOUNT_ID = var.cloudflare_account_id

@@ -12,7 +12,7 @@ resource "null_resource" "linear_bot_build" {
 
   provisioner "local-exec" {
     command     = "npm run build"
-    working_dir = "${var.project_root}/packages/linear-bot"
+    working_dir = "${local.repo_root}/packages/linear-bot"
   }
 }
 
@@ -20,9 +20,10 @@ module "linear_bot_worker" {
   count  = var.enable_linear_bot ? 1 : 0
   source = "../../modules/cloudflare-worker"
 
-  account_id  = var.cloudflare_account_id
-  worker_name = "open-inspect-linear-bot-${local.name_suffix}"
-  script_path = local.linear_bot_script_path
+  account_id            = var.cloudflare_account_id
+  workers_dev_subdomain = var.cloudflare_worker_subdomain
+  worker_name           = "open-inspect-linear-bot-${local.name_suffix}"
+  script_path           = local.linear_bot_script_path
 
   kv_namespaces = [
     {

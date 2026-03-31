@@ -12,7 +12,7 @@ resource "null_resource" "github_bot_build" {
 
   provisioner "local-exec" {
     command     = "npm run build"
-    working_dir = "${var.project_root}/packages/github-bot"
+    working_dir = "${local.repo_root}/packages/github-bot"
   }
 }
 
@@ -20,9 +20,10 @@ module "github_bot_worker" {
   count  = var.enable_github_bot ? 1 : 0
   source = "../../modules/cloudflare-worker"
 
-  account_id  = var.cloudflare_account_id
-  worker_name = "open-inspect-github-bot-${local.name_suffix}"
-  script_path = local.github_bot_script_path
+  account_id            = var.cloudflare_account_id
+  workers_dev_subdomain = var.cloudflare_worker_subdomain
+  worker_name           = "open-inspect-github-bot-${local.name_suffix}"
+  script_path           = local.github_bot_script_path
 
   kv_namespaces = [
     {

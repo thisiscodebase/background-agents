@@ -28,11 +28,14 @@ terraform {
     # access_key = "..."
     # secret_key = "..."
 
-    # Required for R2 compatibility
+    # Required for R2 compatibility (see Cloudflare remote-backend docs)
     skip_credentials_validation = true
     skip_metadata_api_check     = true
     skip_region_validation      = true
     skip_requesting_account_id  = true
     skip_s3_checksum            = true
+    # Without path-style URLs, ListObjectsV2 can return NoSuchBucket even when the
+    # bucket exists (virtual-hosted-style is not what R2 expects for this client).
+    use_path_style = true
   }
 }

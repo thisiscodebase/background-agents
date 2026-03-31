@@ -9,7 +9,7 @@ data "external" "modal_source_hash" {
   count = var.sandbox_provider == "modal" ? 1 : 0
 
   program = ["bash", "-c", <<-EOF
-    cd ${var.project_root}
+    cd ${local.repo_root}
     if command -v sha256sum &> /dev/null; then
       hash=$(find packages/modal-infra/src packages/sandbox-runtime/src -type f \( -name "*.py" -o -name "*.js" -o -name "*.ts" \) -exec sha256sum {} \; | sha256sum | cut -d' ' -f1)
     else
@@ -29,7 +29,7 @@ module "modal_app" {
 
   app_name      = "open-inspect"
   workspace     = var.modal_workspace
-  deploy_path   = "${var.project_root}/packages/modal-infra"
+  deploy_path   = "${local.repo_root}/packages/modal-infra"
   deploy_module = "deploy"
   source_hash   = data.external.modal_source_hash[0].result.hash
 

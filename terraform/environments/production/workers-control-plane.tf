@@ -12,16 +12,17 @@ resource "null_resource" "control_plane_build" {
 
   provisioner "local-exec" {
     command     = "npm run build"
-    working_dir = "${var.project_root}/packages/control-plane"
+    working_dir = "${local.repo_root}/packages/control-plane"
   }
 }
 
 module "control_plane_worker" {
   source = "../../modules/cloudflare-worker"
 
-  account_id  = var.cloudflare_account_id
-  worker_name = "open-inspect-control-plane-${local.name_suffix}"
-  script_path = local.control_plane_script_path
+  account_id            = var.cloudflare_account_id
+  workers_dev_subdomain = var.cloudflare_worker_subdomain
+  worker_name           = "open-inspect-control-plane-${local.name_suffix}"
+  script_path           = local.control_plane_script_path
 
   kv_namespaces = [
     {

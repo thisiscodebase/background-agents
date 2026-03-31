@@ -7,7 +7,7 @@
  * - Prompt queue and event streaming
  */
 
-import { DurableObject } from "cloudflare:workers";
+import { DurableObject } from "../cf-durable-object";
 import { initSchema } from "./schema";
 import { buildSessionInternalUrl, SessionInternalPaths } from "./contracts";
 import { timingSafeEqual } from "@open-inspect/shared";

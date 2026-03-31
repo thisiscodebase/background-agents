@@ -120,6 +120,25 @@ Quick health check:
 curl https://<your-vercel-infra-domain>/api-health
 ```
 
+### Web app (`packages/web`) on Vercel
+
+The web app depends on `@open-inspect/shared` via `file:../shared`. A Vercel build that only uploads
+**`packages/web`** (for example `vercel --prod` with “code located `./`” and no Git checkout of the
+full monorepo) will fail with **Can't resolve '@open-inspect/shared'**.
+
+Do this instead:
+
+1. **Connect the Vercel project to this Git repository** (Import Project → your repo).
+2. Set **Root Directory** to `packages/web`.
+3. Keep the default install/build; `packages/web/vercel.json` runs `npm install` at the **repo
+   root** and builds shared first
+   (`cd ../.. && npm install && npm run build -w @open-inspect/shared`, then `npm run build` in the
+   app).
+
+If you use the CLI, link the project to the same Git-backed setup and deploy via **git push** or
+dashboard **Redeploy** so the full monorepo is present on the build machine—not a sparse upload of
+`packages/web` only.
+
 ## 5) Prepare Terraform Config
 
 ```bash

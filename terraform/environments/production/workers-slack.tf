@@ -14,7 +14,7 @@ resource "null_resource" "slack_bot_build" {
 
   provisioner "local-exec" {
     command     = "npm run build"
-    working_dir = "${var.project_root}/packages/slack-bot"
+    working_dir = "${local.repo_root}/packages/slack-bot"
   }
 }
 
@@ -22,9 +22,10 @@ module "slack_bot_worker" {
   count  = var.enable_slack_bot ? 1 : 0
   source = "../../modules/cloudflare-worker"
 
-  account_id  = var.cloudflare_account_id
-  worker_name = "open-inspect-slack-bot-${local.name_suffix}"
-  script_path = local.slack_bot_script_path
+  account_id            = var.cloudflare_account_id
+  workers_dev_subdomain = var.cloudflare_worker_subdomain
+  worker_name           = "open-inspect-slack-bot-${local.name_suffix}"
+  script_path           = local.slack_bot_script_path
 
   kv_namespaces = [
     {
