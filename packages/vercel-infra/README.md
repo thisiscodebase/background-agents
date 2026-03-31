@@ -36,7 +36,8 @@ This package includes:
 
 Recommended deploy shape:
 
-1. Create a Vercel project with root directory `packages/vercel-infra`
+1. Create a Vercel project with root directory `packages/vercel-infra`, framework **Other** (or
+   leave defaults; `vercel.json` sets `outputDirectory` to `public` for the static placeholder).
 2. Set `SANDBOX_API_SECRET` (required)
 3. Set `OPENINSPECT_GITHUB_TOKEN` for private repositories
 4. Deploy and use the resulting URL as control-plane `SANDBOX_API_BASE_URL`
