@@ -130,6 +130,21 @@ export class RepoImageStore {
     return result.results || [];
   }
 
+  /**
+   * Mark all in-progress builds for a repo as failed (user-initiated cancel or reset).
+   */
+  async cancelBuildingForRepo(repoOwner: string, repoName: string): Promise<number> {
+    const result = await this.db
+      .prepare(
+        `UPDATE repo_images SET status = 'failed', error_message = ?
+         WHERE repo_owner = ? AND repo_name = ? AND status = 'building'`
+      )
+      .bind("cancelled", repoOwner.toLowerCase(), repoName.toLowerCase())
+      .run();
+
+    return result.meta?.changes ?? 0;
+  }
+
   async markStaleBuildsAsFailed(maxAgeMs: number): Promise<number> {
     const cutoff = Date.now() - maxAgeMs;
     const result = await this.db

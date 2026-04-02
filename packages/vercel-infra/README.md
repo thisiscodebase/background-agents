@@ -19,7 +19,10 @@ This package provides a Modal-compatible HTTP surface backed by Vercel Sandbox A
 
 ## Required Environment Variables
 
-- `SANDBOX_API_SECRET` - shared HMAC secret for internal auth.
+- `SANDBOX_API_SECRET` - shared HMAC secret for inbound calls to this service (must match
+  control-plane `SANDBOX_API_SECRET`).
+- `INTERNAL_CALLBACK_SECRET` - same value as control-plane `INTERNAL_CALLBACK_SECRET`; used to sign
+  `POST` callbacks to `/repo-images/build-complete` and `/repo-images/build-failed` on the worker.
 
 ## Optional Environment Variables
 

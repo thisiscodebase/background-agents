@@ -1,5 +1,7 @@
 export interface Env {
   SANDBOX_API_SECRET: string;
+  /** Same value as control-plane `INTERNAL_CALLBACK_SECRET`; signs callbacks to `/repo-images/*`. */
+  INTERNAL_CALLBACK_SECRET: string;
   OPENINSPECT_BRIDGE_BOOT_CMD?: string;
   OPENINSPECT_BOOTSTRAP_CMD?: string;
   OPENINSPECT_GITHUB_TOKEN?: string;

@@ -1,3 +1,4 @@
+import { generateInternalToken } from "@open-inspect/shared";
 import { Hono } from "hono";
 import { requireInternalAuth } from "./auth";
 import { resolveRuntimeEnv } from "./runtime-env";
@@ -143,18 +144,33 @@ function formatSandboxRouteError(route: string, error: unknown): string {
 async function callBuildCompleteCallback(
   callbackUrl: string,
   buildId: string,
-  providerImageId: string
+  providerImageId: string,
+  internalSecret: string
 ): Promise<void> {
-  await fetch(callbackUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      build_id: buildId,
-      provider_image_id: providerImageId,
-      base_sha: "",
-      build_duration_seconds: 0,
-    }),
+  if (!internalSecret) {
+    throw new Error("INTERNAL_CALLBACK_SECRET is not configured");
+  }
+  const token = await generateInternalToken(internalSecret);
+  const body = JSON.stringify({
+    build_id: buildId,
+    provider_image_id: providerImageId,
+    base_sha: "",
+    build_duration_seconds: 0,
   });
+  const response = await fetch(callbackUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body,
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(
+      `Build-complete callback failed: HTTP ${response.status}${text ? ` — ${text.slice(0, 500)}` : ""}`
+    );
+  }
 }
 
 app.get("/api-health", (c) => {
@@ -323,9 +339,15 @@ app.post("/api-build-repo-image", async (c) => {
   await bootstrapRuntime(sandbox, createLikeBody, env);
 
   try {
-    await callBuildCompleteCallback(body.callback_url, body.build_id, imageName);
-  } catch {
-    return c.json({ success: false, error: "Failed to call build callback" }, 502);
+    await callBuildCompleteCallback(
+      body.callback_url,
+      body.build_id,
+      imageName,
+      env.INTERNAL_CALLBACK_SECRET
+    );
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return c.json({ success: false, error: `Failed to call build callback: ${message}` }, 502);
   }
 
   return c.json({

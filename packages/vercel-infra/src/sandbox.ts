@@ -42,5 +42,15 @@ export async function resumeOrCreateFromSnapshot(
 }
 
 export async function runShellCommand(sandbox: any, command: string): Promise<void> {
-  await sandbox.runCommand("bash", ["-lc", command]);
+  const finished = await sandbox.runCommand("bash", ["-lc", command]);
+  if (finished.exitCode !== 0) {
+    let stderr = "";
+    try {
+      stderr = await finished.stderr();
+    } catch {
+      // ignore secondary failures
+    }
+    const tail = stderr.trim().slice(-2000);
+    throw new Error(`shell command failed (exit ${finished.exitCode})${tail ? `: ${tail}` : ""}`);
+  }
 }

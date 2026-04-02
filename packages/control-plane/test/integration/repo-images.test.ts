@@ -244,6 +244,31 @@ describe("D1 RepoImageStore", () => {
     expect(deleted).toBeUndefined();
   });
 
+  it("cancelBuildingForRepo marks only that repo's building rows as failed", async () => {
+    await store.registerBuild({
+      id: "img-stuck",
+      repoOwner: "acme",
+      repoName: "repo",
+      baseBranch: "main",
+    });
+    await store.registerBuild({
+      id: "img-other",
+      repoOwner: "acme",
+      repoName: "other",
+      baseBranch: "main",
+    });
+
+    const n = await store.cancelBuildingForRepo("acme", "repo");
+    expect(n).toBe(1);
+
+    const statusRepo = await store.getStatus("acme", "repo");
+    expect(statusRepo[0].status).toBe("failed");
+    expect(statusRepo[0].error_message).toBe("cancelled");
+
+    const statusOther = await store.getStatus("acme", "other");
+    expect(statusOther[0].status).toBe("building");
+  });
+
   it("different repos have independent images", async () => {
     await metadataStore.setImageBuildEnabled("acme", "repo-a", true);
     await metadataStore.setImageBuildEnabled("acme", "repo-b", true);
@@ -316,6 +341,29 @@ describe("Repo image HTTP routes", () => {
     const ready = await store.getLatestReady("acme", "repo");
     expect(ready).not.toBeNull();
     expect(ready!.provider_image_id).toBe("modal-img-xyz");
+  });
+
+  it("POST /repo-images/cancel/:owner/:name cancels building rows", async () => {
+    await store.registerBuild({
+      id: "img-cancel-me",
+      repoOwner: "acme",
+      repoName: "repo",
+      baseBranch: "main",
+    });
+
+    const response = await SELF.fetch("https://test.local/repo-images/cancel/acme/repo", {
+      method: "POST",
+      headers: await authHeaders(),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json<{ ok: boolean; cancelled: number }>();
+    expect(body.ok).toBe(true);
+    expect(body.cancelled).toBe(1);
+
+    const status = await store.getStatus("acme", "repo");
+    expect(status[0].status).toBe("failed");
+    expect(status[0].error_message).toBe("cancelled");
   });
 
   it("POST /repo-images/build-failed marks build as failed", async () => {
@@ -495,6 +543,13 @@ describe("Repo image HTTP routes", () => {
     expect(response.status).toBe(400);
     const body = await response.json<{ error: string }>();
     expect(body.error).toContain("boolean");
+  });
+
+  it("POST /repo-images/cancel requires auth", async () => {
+    const response = await SELF.fetch("https://test.local/repo-images/cancel/acme/repo", {
+      method: "POST",
+    });
+    expect(response.status).toBe(401);
   });
 
   it("PUT /repo-images/toggle requires auth", async () => {

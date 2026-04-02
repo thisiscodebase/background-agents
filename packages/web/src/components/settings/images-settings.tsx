@@ -30,6 +30,7 @@ export function ImagesSettings() {
   const { data, isLoading: imagesLoading } = useSWR<ImageRegistryData>(REPO_IMAGES_KEY);
   const [togglingRepos, setTogglingRepos] = useState<Set<string>>(new Set());
   const [triggeringRepos, setTriggeringRepos] = useState<Set<string>>(new Set());
+  const [cancellingRepos, setCancellingRepos] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
 
   const loading = reposLoading || imagesLoading;
@@ -38,7 +39,11 @@ export function ImagesSettings() {
 
   const getLatestImage = (owner: string, name: string): RepoImage | undefined => {
     const key = `${owner}/${name}`.toLowerCase();
-    return data?.images.find((img) => `${img.repo_owner}/${img.repo_name}`.toLowerCase() === key);
+    const matches =
+      data?.images.filter((img) => `${img.repo_owner}/${img.repo_name}`.toLowerCase() === key) ??
+      [];
+    if (matches.length === 0) return undefined;
+    return matches.reduce((a, b) => (a.created_at >= b.created_at ? a : b));
   };
 
   const handleToggle = async (owner: string, name: string, enabled: boolean) => {
@@ -66,6 +71,34 @@ export function ImagesSettings() {
       setError("Failed to toggle image build");
     } finally {
       setTogglingRepos((prev) => {
+        const next = new Set(prev);
+        next.delete(repoKey);
+        return next;
+      });
+    }
+  };
+
+  const handleCancel = async (owner: string, name: string) => {
+    const repoKey = `${owner}/${name}`.toLowerCase();
+    setCancellingRepos((prev) => new Set(prev).add(repoKey));
+    setError("");
+
+    try {
+      const res = await fetch(
+        `/api/repo-images/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/cancel`,
+        { method: "POST" }
+      );
+
+      if (!res.ok) {
+        const errBody = await res.json();
+        setError(errBody.error || "Failed to cancel build");
+      } else {
+        mutate(REPO_IMAGES_KEY);
+      }
+    } catch {
+      setError("Failed to cancel build");
+    } finally {
+      setCancellingRepos((prev) => {
         const next = new Set(prev);
         next.delete(repoKey);
         return next;
@@ -115,7 +148,7 @@ export function ImagesSettings() {
       <h2 className="text-xl font-semibold text-foreground mb-1">Pre-Built Images</h2>
       <p className="text-sm text-muted-foreground mb-6">
         Enable pre-built images to speed up sandbox creation. Images are rebuilt automatically when
-        the default branch changes.
+        the default branch changes. If a build is stuck, use Cancel build, then Rebuild.
       </p>
 
       {error && (
@@ -130,6 +163,7 @@ export function ImagesSettings() {
           const isEnabled = enabledRepos.has(repoKey);
           const isToggling = togglingRepos.has(repoKey);
           const isTriggering = triggeringRepos.has(repoKey);
+          const isCancelling = cancellingRepos.has(repoKey);
           const image = getLatestImage(repo.owner, repo.name);
 
           return (
@@ -149,8 +183,19 @@ export function ImagesSettings() {
                 </span>
               </div>
 
-              <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+              <div className="flex items-center gap-2 flex-shrink-0 ml-4">
                 <ImageStatus image={image} isEnabled={isEnabled} />
+                {isEnabled && image?.status === "building" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-8"
+                    onClick={() => handleCancel(repo.owner, repo.name)}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? "Cancelling…" : "Cancel build"}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

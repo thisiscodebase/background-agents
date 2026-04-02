@@ -4,7 +4,11 @@ import app from "./index";
 
 const sandboxMocks = vi.hoisted(() => {
   const sandboxInstance = {
-    runCommand: vi.fn(async () => ({})),
+    runCommand: vi.fn(async () => ({
+      exitCode: 0,
+      stderr: async () => "",
+      stdout: async () => "",
+    })),
     stop: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
   };
@@ -24,6 +28,7 @@ vi.mock("@vercel/sandbox", () => ({
 
 const env = {
   SANDBOX_API_SECRET: "test-secret",
+  INTERNAL_CALLBACK_SECRET: "internal-callback-secret",
   OPENINSPECT_GITHUB_TOKEN: "",
   OPENINSPECT_BOOTSTRAP_CMD: "echo bootstrap",
   OPENINSPECT_BRIDGE_BOOT_CMD: "echo bridge",
@@ -104,6 +109,42 @@ describe("vercel-infra compatibility API", () => {
     expect(body.data?.modal_object_id).toContain("oi-session-session-1");
     expect(sandboxMocks.sandboxCreate).toHaveBeenCalled();
     expect(sandboxMocks.sandboxInstance.runCommand).toHaveBeenCalled();
+  });
+
+  it("posts build-complete with internal HMAC auth", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const response = await app.request(
+        "http://localhost/api-build-repo-image",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(await authHeader()),
+          },
+          body: JSON.stringify({
+            repo_owner: "acme",
+            repo_name: "app",
+            build_id: "build-1",
+            callback_url: "https://control.test/repo-images/build-complete",
+          }),
+        },
+        env
+      );
+
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const args = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      const headers = new Headers(args[1].headers as HeadersInit);
+      expect(headers.get("Authorization")).toMatch(/^Bearer [\d]+\.[a-f0-9]+$/i);
+      expect(headers.get("Content-Type")).toBe("application/json");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("stops sandbox on snapshot call", async () => {

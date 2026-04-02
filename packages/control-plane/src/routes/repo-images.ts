@@ -302,6 +302,50 @@ async function handleTriggerBuild(
 }
 
 /**
+ * POST /repo-images/cancel/:owner/:name
+ * Mark in-progress image builds for this repo as failed so the UI can retry.
+ */
+async function handleCancelBuild(
+  _request: Request,
+  env: Env,
+  match: RegExpMatchArray,
+  ctx: RequestContext
+): Promise<Response> {
+  if (!env.DB) {
+    return error("Database not configured", 503);
+  }
+
+  const params = extractRepoParams(match);
+  if (params instanceof Response) return params;
+  const { owner, name } = params;
+
+  const store = new RepoImageStore(env.DB);
+
+  try {
+    const cancelled = await store.cancelBuildingForRepo(owner, name);
+
+    logger.info("repo_image.build_cancelled", {
+      repo_owner: owner,
+      repo_name: name,
+      cancelled_rows: cancelled,
+      request_id: ctx.request_id,
+      trace_id: ctx.trace_id,
+    });
+
+    return json({ ok: true, cancelled });
+  } catch (e) {
+    logger.error("repo_image.cancel_error", {
+      error: e instanceof Error ? e.message : String(e),
+      repo_owner: owner,
+      repo_name: name,
+      request_id: ctx.request_id,
+      trace_id: ctx.trace_id,
+    });
+    return error("Failed to cancel build", 500);
+  }
+}
+
+/**
  * GET /repo-images/status
  * Get image build status for all repos or a specific repo.
  */
@@ -529,6 +573,11 @@ export const repoImageRoutes: Route[] = [
     method: "POST",
     pattern: parsePattern("/repo-images/trigger/:owner/:name"),
     handler: handleTriggerBuild,
+  },
+  {
+    method: "POST",
+    pattern: parsePattern("/repo-images/cancel/:owner/:name"),
+    handler: handleCancelBuild,
   },
   {
     method: "GET",

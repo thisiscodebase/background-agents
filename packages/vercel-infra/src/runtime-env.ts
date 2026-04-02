@@ -8,6 +8,7 @@ import type { Env } from "./types";
 export function resolveRuntimeEnv(c: Context<{ Bindings: Env }>): Env {
   const fromProcess: Env = {
     SANDBOX_API_SECRET: process.env.SANDBOX_API_SECRET ?? "",
+    INTERNAL_CALLBACK_SECRET: process.env.INTERNAL_CALLBACK_SECRET ?? "",
     OPENINSPECT_GITHUB_TOKEN: process.env.OPENINSPECT_GITHUB_TOKEN,
     OPENINSPECT_BOOTSTRAP_CMD: process.env.OPENINSPECT_BOOTSTRAP_CMD,
     OPENINSPECT_BRIDGE_BOOT_CMD: process.env.OPENINSPECT_BRIDGE_BOOT_CMD,
