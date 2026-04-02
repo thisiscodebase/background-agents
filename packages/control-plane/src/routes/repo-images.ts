@@ -290,13 +290,26 @@ async function handleTriggerBuild(
 
     return json({ buildId, status: "building" });
   } catch (e) {
+    const errText = e instanceof Error ? e.message : String(e);
     logger.error("repo_image.trigger_error", {
-      error: e instanceof Error ? e.message : String(e),
+      error: errText,
       repo_owner: owner,
       repo_name: name,
+      build_id: buildId,
       request_id: ctx.request_id,
       trace_id: ctx.trace_id,
     });
+    try {
+      const forUi = errText.length > 2000 ? `${errText.slice(0, 2000)}…` : errText;
+      await store.markFailed(buildId, forUi);
+    } catch (markErr) {
+      logger.warn("repo_image.trigger_mark_failed_failed", {
+        build_id: buildId,
+        error: markErr instanceof Error ? markErr.message : String(markErr),
+        request_id: ctx.request_id,
+        trace_id: ctx.trace_id,
+      });
+    }
     return error("Failed to trigger build", 500);
   }
 }

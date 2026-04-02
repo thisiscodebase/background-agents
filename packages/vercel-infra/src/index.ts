@@ -173,6 +173,33 @@ async function callBuildCompleteCallback(
   }
 }
 
+function buildFailedCallbackUrl(completeCallbackUrl: string): string {
+  return completeCallbackUrl.replace(/\/build-complete\/?$/, "/build-failed");
+}
+
+/** Best-effort notify control plane when complete callback fails (e.g. wrong secret). */
+async function callBuildFailedCallback(
+  completeCallbackUrl: string,
+  buildId: string,
+  internalSecret: string,
+  detail: string
+): Promise<void> {
+  if (!internalSecret) return;
+  const token = await generateInternalToken(internalSecret);
+  const url = buildFailedCallbackUrl(completeCallbackUrl);
+  await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      build_id: buildId,
+      error: detail.length > 2000 ? `${detail.slice(0, 2000)}…` : detail,
+    }),
+  });
+}
+
 app.get("/api-health", (c) => {
   const response: ApiEnvelope<{ status: string; service: string }> = {
     success: true,
@@ -347,6 +374,16 @@ app.post("/api-build-repo-image", async (c) => {
     );
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    try {
+      await callBuildFailedCallback(
+        body.callback_url,
+        body.build_id,
+        env.INTERNAL_CALLBACK_SECRET,
+        `Image build finished but control plane was not notified: ${message}`
+      );
+    } catch {
+      // ignore secondary callback failures
+    }
     return c.json({ success: false, error: `Failed to call build callback: ${message}` }, 502);
   }
 

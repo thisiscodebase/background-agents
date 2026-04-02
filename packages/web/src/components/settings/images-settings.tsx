@@ -118,13 +118,15 @@ export function ImagesSettings() {
       );
 
       if (!res.ok) {
-        const errBody = await res.json();
-        setError(errBody.error || "Failed to trigger build");
+        const errBody = await res.json().catch(() => ({}));
+        setError((errBody as { error?: string }).error || "Failed to trigger build");
+        void mutate(REPO_IMAGES_KEY);
       } else {
-        mutate(REPO_IMAGES_KEY);
+        void mutate(REPO_IMAGES_KEY);
       }
     } catch {
       setError("Failed to trigger build");
+      void mutate(REPO_IMAGES_KEY);
     } finally {
       setTriggeringRepos((prev) => {
         const next = new Set(prev);
