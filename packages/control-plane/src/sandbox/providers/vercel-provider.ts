@@ -13,6 +13,8 @@ import {
   type SandboxProviderCapabilities,
   type CreateSandboxConfig,
   type CreateSandboxResult,
+  type DiagnosticsConfig,
+  type DiagnosticsResult,
   type RestoreConfig,
   type RestoreResult,
   type SnapshotConfig,
@@ -148,6 +150,36 @@ export class VercelSandboxProvider implements SandboxProvider {
         throw error;
       }
       throw this.classifyError("Failed to take snapshot", error);
+    }
+  }
+
+  async collectDiagnostics(config: DiagnosticsConfig): Promise<DiagnosticsResult> {
+    try {
+      const result = await this.client.debugSandbox(
+        {
+          sandboxId: config.providerObjectId,
+          reason: config.reason,
+          tailLines: 200,
+        },
+        config.correlation
+      );
+      return {
+        success: true,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      };
+    } catch (error) {
+      if (error instanceof VercelCompatApiError) {
+        return {
+          success: false,
+          error: `Diagnostics endpoint failed: HTTP ${error.status}`,
+        };
+      }
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
     }
   }
 

@@ -692,6 +692,30 @@ export class SandboxLifecycleManager {
         elapsed_ms: connectingResult.elapsedMs,
         timeout_ms: this.config.connectingTimeout.timeoutMs,
       });
+      if (this.provider.collectDiagnostics && sandbox.modal_object_id) {
+        try {
+          const diagnostics = await this.provider.collectDiagnostics({
+            providerObjectId: sandbox.modal_object_id,
+            sessionId: this.config.sessionId || "unknown",
+            reason: "connecting_timeout",
+          });
+          this.log.warn("Connecting-timeout diagnostics", {
+            event: "sandbox.connecting_timeout_diagnostics",
+            provider_object_id: sandbox.modal_object_id,
+            diagnostics_success: diagnostics.success,
+            diagnostics_exit_code: diagnostics.exitCode,
+            diagnostics_error: diagnostics.error,
+            diagnostics_stdout: diagnostics.stdout?.slice(0, 4000),
+            diagnostics_stderr: diagnostics.stderr?.slice(0, 4000),
+          });
+        } catch (e) {
+          this.log.warn("Connecting-timeout diagnostics failed", {
+            event: "sandbox.connecting_timeout_diagnostics_error",
+            provider_object_id: sandbox.modal_object_id,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
       await this.callbacks.onSandboxTerminating?.();
       this.storage.updateSandboxStatus("failed");
       this.storage.clearSandboxCodeServer();

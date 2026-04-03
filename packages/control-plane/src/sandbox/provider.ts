@@ -158,6 +158,36 @@ export interface SnapshotResult {
 }
 
 /**
+ * Configuration for collecting runtime diagnostics from a sandbox.
+ */
+export interface DiagnosticsConfig {
+  /** Provider's internal object ID (e.g. Vercel persistent sandbox name). */
+  providerObjectId: string;
+  /** Session ID for correlation and auditing. */
+  sessionId: string;
+  /** Why diagnostics were requested (e.g. "connecting_timeout"). */
+  reason: string;
+  /** Correlation context for downstream tracing. */
+  correlation?: CorrelationContext;
+}
+
+/**
+ * Result of collecting sandbox diagnostics.
+ */
+export interface DiagnosticsResult {
+  /** Whether diagnostics were successfully collected. */
+  success: boolean;
+  /** Exit code from diagnostics shell command, when available. */
+  exitCode?: number;
+  /** Captured stdout from diagnostics command. */
+  stdout?: string;
+  /** Captured stderr from diagnostics command. */
+  stderr?: string;
+  /** Error details when diagnostics collection fails. */
+  error?: string;
+}
+
+/**
  * Error classification for circuit breaker decisions.
  *
  * Only permanent failures should count toward the circuit breaker threshold.
@@ -305,4 +335,11 @@ export interface SandboxProvider {
    * @throws SandboxProviderError with errorType for error handling
    */
   takeSnapshot?(config: SnapshotConfig): Promise<SnapshotResult>;
+
+  /**
+   * Collect provider-specific runtime diagnostics from an existing sandbox.
+   *
+   * Optional capability used for post-failure debugging (e.g. connect timeout).
+   */
+  collectDiagnostics?(config: DiagnosticsConfig): Promise<DiagnosticsResult>;
 }

@@ -62,3 +62,9 @@ export interface BuildRepoImageRequest {
 export interface DeleteProviderImageRequest {
   provider_image_id?: string;
 }
+
+export interface DebugSandboxRequest {
+  sandbox_id?: string;
+  reason?: string;
+  tail_lines?: number;
+}

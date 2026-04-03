@@ -66,6 +66,7 @@ export class VercelCompatClient {
   private readonly restoreSandboxUrl: string;
   private readonly buildRepoImageUrl: string;
   private readonly deleteProviderImageUrl: string;
+  private readonly debugSandboxUrl: string;
 
   constructor(
     private readonly secret: string,
@@ -87,6 +88,7 @@ export class VercelCompatClient {
     this.restoreSandboxUrl = `${trimmedBaseUrl}/api-restore-sandbox`;
     this.buildRepoImageUrl = `${trimmedBaseUrl}/api-build-repo-image`;
     this.deleteProviderImageUrl = `${trimmedBaseUrl}/api-delete-provider-image`;
+    this.debugSandboxUrl = `${trimmedBaseUrl}/api-debug-sandbox`;
   }
 
   private async getPostHeaders(correlation?: CorrelationContext): Promise<Record<string, string>> {
@@ -434,6 +436,51 @@ export class VercelCompatClient {
       throw new Error(result.error || "Unknown delete provider image error");
     }
     return { providerImageId: result.data.provider_image_id, deleted: result.data.deleted };
+  }
+
+  async debugSandbox(
+    request: {
+      sandboxId: string;
+      reason: string;
+      tailLines?: number;
+    },
+    correlation?: CorrelationContext
+  ): Promise<{
+    sandboxId: string;
+    exitCode: number;
+    stdout: string;
+    stderr: string;
+  }> {
+    const response = await fetch(this.debugSandboxUrl, {
+      method: "POST",
+      headers: await this.getPostHeaders(correlation),
+      body: JSON.stringify({
+        sandbox_id: request.sandboxId,
+        reason: request.reason,
+        tail_lines: request.tailLines ?? 200,
+      }),
+    });
+    if (!response.ok) {
+      throw new VercelCompatApiError(
+        `Vercel compat API error: ${response.status} ${await response.text()}`,
+        response.status
+      );
+    }
+    const result = (await response.json()) as CompatApiResponse<{
+      sandbox_id: string;
+      exit_code: number;
+      stdout: string;
+      stderr: string;
+    }>;
+    if (!result.success || !result.data) {
+      throw new Error(result.error || "Unknown sandbox diagnostics error");
+    }
+    return {
+      sandboxId: result.data.sandbox_id,
+      exitCode: result.data.exit_code,
+      stdout: result.data.stdout,
+      stderr: result.data.stderr,
+    };
   }
 }
 

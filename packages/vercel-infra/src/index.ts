@@ -2,17 +2,21 @@ import { generateInternalToken } from "@open-inspect/shared";
 import { Hono } from "hono";
 import { requireInternalAuth } from "./auth";
 import { resolveRuntimeEnv } from "./runtime-env";
+import { infraLog } from "./infra-log";
 import {
   buildRepoImageSandboxName,
   buildSessionSandboxName,
+  getExistingPersistentSandbox,
   getOrCreatePersistentSandbox,
   resumeOrCreateFromSnapshot,
   runShellCommand,
+  runShellCommandWithOutput,
 } from "./sandbox";
 import type {
   ApiEnvelope,
   BuildRepoImageRequest,
   CreateSandboxRequest,
+  DebugSandboxRequest,
   DeleteProviderImageRequest,
   Env,
   RestoreSandboxRequest,
@@ -77,7 +81,8 @@ async function syncRepository(
       "git fetch --all --prune",
       `git checkout ${shellEscape(branchName)} || true`,
       "git pull --ff-only || true",
-    ].join(" && ")
+    ].join(" && "),
+    "sync_repo"
   );
 }
 
@@ -120,7 +125,8 @@ async function bootstrapRuntime(
         ...exports,
         `cd ${shellEscape(repoDir)}`,
         env.OPENINSPECT_BOOTSTRAP_CMD,
-      ].join(" && ")
+      ].join(" && "),
+      "bootstrap_cmd"
     );
   }
 
@@ -131,7 +137,8 @@ async function bootstrapRuntime(
         ...exports,
         `cd ${shellEscape(repoDir)}`,
         `nohup bash -lc ${shellEscape(env.OPENINSPECT_BRIDGE_BOOT_CMD)} > /tmp/openinspect-bridge.log 2>&1 &`,
-      ].join(" && ")
+      ].join(" && "),
+      "bridge_boot"
     );
   }
 }
@@ -139,6 +146,19 @@ async function bootstrapRuntime(
 function formatSandboxRouteError(route: string, error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return `${route}: ${message}`;
+}
+
+function buildDiagnosticsCommand(tailLines: number): string {
+  const lines = Number.isFinite(tailLines)
+    ? Math.min(Math.max(Math.trunc(tailLines), 20), 1000)
+    : 200;
+  return [
+    "set +e",
+    "echo '=== diagnostics: bridge log tail ==='",
+    `if [ -f /tmp/openinspect-bridge.log ]; then tail -n ${lines} /tmp/openinspect-bridge.log; else echo 'bridge log missing: /tmp/openinspect-bridge.log'; fi`,
+    "echo '=== diagnostics: bridge/process table ==='",
+    "ps aux | grep -E 'openinspect|opencode|bridge|code-server' | grep -v grep || echo 'no matching processes'",
+  ].join(" && ");
 }
 
 async function callBuildCompleteCallback(
@@ -228,14 +248,29 @@ app.post("/api-create-sandbox", async (c) => {
     );
   }
 
+  const started = Date.now();
   try {
     const persistentName = buildSessionSandboxName(body.session_id);
-    const sandbox = await getOrCreatePersistentSandbox(persistentName);
     const responseSandboxId = body.sandbox_id || persistentName;
+    infraLog({
+      event: "api_create_sandbox_start",
+      session_id: body.session_id,
+      persistent_sandbox_name: persistentName,
+      response_sandbox_id: responseSandboxId,
+      repo: `${body.repo_owner}/${body.repo_name}`,
+    });
+    const sandbox = await getOrCreatePersistentSandbox(persistentName);
     const env = resolveRuntimeEnv(c);
+    infraLog({ event: "api_create_sandbox_sync_repo", persistent_sandbox_name: persistentName });
     await syncRepository(sandbox, body, env);
+    infraLog({ event: "api_create_sandbox_bootstrap", persistent_sandbox_name: persistentName });
     await bootstrapRuntime(sandbox, { ...body, sandbox_id: responseSandboxId }, env);
 
+    infraLog({
+      event: "api_create_sandbox_ok",
+      persistent_sandbox_name: persistentName,
+      duration_ms: Date.now() - started,
+    });
     return c.json({
       success: true,
       data: {
@@ -247,6 +282,11 @@ app.post("/api-create-sandbox", async (c) => {
     });
   } catch (error) {
     const message = formatSandboxRouteError("api-create-sandbox", error);
+    infraLog({
+      event: "api_create_sandbox_error",
+      duration_ms: Date.now() - started,
+      error: message.slice(0, 500),
+    });
     console.error(message, error);
     return c.json({ success: false, error: message }, 500);
   }
@@ -314,6 +354,58 @@ app.post("/api-snapshot-sandbox", async (c) => {
       reason: body.reason ?? "manual",
     },
   });
+});
+
+app.post("/api-debug-sandbox", async (c) => {
+  if (!(await requireInternalAuth(c))) {
+    return c.json({ success: false, error: "Unauthorized" }, 401);
+  }
+
+  const body = await parseJsonBody<DebugSandboxRequest>(c.req.raw);
+  if (!body?.sandbox_id) {
+    return c.json({ success: false, error: "sandbox_id is required" }, 400);
+  }
+
+  const started = Date.now();
+  const tailLines = body.tail_lines ?? 200;
+  try {
+    infraLog({
+      event: "api_debug_sandbox_start",
+      sandbox_id: body.sandbox_id,
+      reason: body.reason ?? "unspecified",
+      tail_lines: tailLines,
+    });
+    const sandbox = await getExistingPersistentSandbox(body.sandbox_id);
+    const result = await runShellCommandWithOutput(
+      sandbox,
+      buildDiagnosticsCommand(tailLines),
+      "debug_sandbox"
+    );
+    infraLog({
+      event: "api_debug_sandbox_ok",
+      sandbox_id: body.sandbox_id,
+      duration_ms: Date.now() - started,
+      exit_code: result.exitCode,
+    });
+    return c.json({
+      success: true,
+      data: {
+        sandbox_id: body.sandbox_id,
+        exit_code: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      },
+    });
+  } catch (error) {
+    const message = formatSandboxRouteError("api-debug-sandbox", error);
+    infraLog({
+      event: "api_debug_sandbox_error",
+      sandbox_id: body.sandbox_id,
+      duration_ms: Date.now() - started,
+      error: message.slice(0, 500),
+    });
+    return c.json({ success: false, error: message }, 500);
+  }
 });
 
 app.post("/api-warm-sandbox", async (c) => {
