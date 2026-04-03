@@ -27,7 +27,8 @@ const app = new Hono<{ Bindings: Env }>();
 const DEFAULT_BRIDGE_BOOT_CMD = [
   "set -euo pipefail",
   "if command -v python3 >/dev/null 2>&1; then PYTHON_BIN=python3; elif command -v python >/dev/null 2>&1; then PYTHON_BIN=python; else echo 'python interpreter not found (need python3 or python)' >&2; exit 1; fi",
-  "if ! \"$PYTHON_BIN\" -c 'import sandbox_runtime' >/dev/null 2>&1; then",
+  "if ! \"$PYTHON_BIN\" -c 'import sandbox_runtime' >/dev/null 2>&1",
+  "then",
   "  if [ -d packages/sandbox-runtime ]; then",
   '    "$PYTHON_BIN" -m pip install -q -e packages/sandbox-runtime',
   '  elif [ -n "${OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC:-}" ]; then',
@@ -38,7 +39,7 @@ const DEFAULT_BRIDGE_BOOT_CMD = [
   "  fi",
   "fi",
   'exec "$PYTHON_BIN" -m sandbox_runtime.entrypoint',
-].join("; ");
+].join("\n");
 
 function shellEscape(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
