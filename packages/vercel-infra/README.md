@@ -30,6 +30,9 @@ This package provides a Modal-compatible HTTP surface backed by Vercel Sandbox A
 - `OPENINSPECT_GITHUB_TOKEN` - token for cloning private repositories.
 - `OPENINSPECT_BOOTSTRAP_CMD` - command run during bootstrap.
 - `OPENINSPECT_BRIDGE_BOOT_CMD` - command used to start runtime bridge process.
+- `OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC` - optional fallback pip spec used when `sandbox_runtime` is
+  missing from the cloned repo (for example:
+  `git+https://...#subdirectory=packages/sandbox-runtime`).
 - `OPENINSPECT_VERCEL_INFRA_VERBOSE=1` - log shell command previews and GET-miss error details
   (noisier).
 - `OPENINSPECT_SANDBOX_CMD_LOG=1` - after each `bash -lc` in the sandbox, log **stdout** and

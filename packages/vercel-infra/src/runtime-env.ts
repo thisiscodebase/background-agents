@@ -12,6 +12,7 @@ export function resolveRuntimeEnv(c: Context<{ Bindings: Env }>): Env {
     OPENINSPECT_GITHUB_TOKEN: process.env.OPENINSPECT_GITHUB_TOKEN,
     OPENINSPECT_BOOTSTRAP_CMD: process.env.OPENINSPECT_BOOTSTRAP_CMD,
     OPENINSPECT_BRIDGE_BOOT_CMD: process.env.OPENINSPECT_BRIDGE_BOOT_CMD,
+    OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC: process.env.OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC,
   };
   const bindings = c.env;
   if (bindings === undefined || bindings === null) {

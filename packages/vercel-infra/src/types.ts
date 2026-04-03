@@ -5,6 +5,7 @@ export interface Env {
   OPENINSPECT_BRIDGE_BOOT_CMD?: string;
   OPENINSPECT_BOOTSTRAP_CMD?: string;
   OPENINSPECT_GITHUB_TOKEN?: string;
+  OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC?: string;
 }
 
 export interface ApiEnvelope<T> {
