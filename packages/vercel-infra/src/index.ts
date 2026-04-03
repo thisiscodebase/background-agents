@@ -49,6 +49,18 @@ function sanitizeEnvVarName(name: string): string | null {
   return /^[A-Z_][A-Z0-9_]*$/.test(name) ? name : null;
 }
 
+function buildRuntimePipSpec(env: Env): string | undefined {
+  if (env.OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC) {
+    return env.OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC;
+  }
+  const owner = process.env.VERCEL_GIT_REPO_OWNER;
+  const slug = process.env.VERCEL_GIT_REPO_SLUG;
+  if (!owner || !slug) return undefined;
+  const token = env.OPENINSPECT_GITHUB_TOKEN;
+  const host = token ? `x-access-token:${token}@github.com` : "github.com";
+  return `git+https://${host}/${owner}/${slug}.git#subdirectory=packages/sandbox-runtime`;
+}
+
 async function parseJsonBody<T>(request: Request): Promise<T | null> {
   try {
     return (await request.json()) as T;
@@ -160,6 +172,8 @@ async function bootstrapRuntime(
     };
     setEnv("SESSION_CONFIG", JSON.stringify(sessionConfig));
   }
+  const runtimePipSpec = buildRuntimePipSpec(env);
+  setEnv("OPENINSPECT_SANDBOX_RUNTIME_PIP_SPEC", runtimePipSpec);
 
   const userEnvVars = request.user_env_vars ?? undefined;
   if (userEnvVars) {
@@ -191,15 +205,15 @@ async function bootstrapRuntime(
     });
   }
   if (bridgeBootCmd) {
-    await runShellCommand(
-      sandbox,
-      [
-        ...exports,
-        `cd ${shellEscape(repoDir)}`,
-        `nohup bash -lc ${shellEscape(bridgeBootCmd)} > /tmp/openinspect-bridge.log 2>&1 &`,
-      ].join(" && "),
-      "bridge_boot"
-    );
+    const bridgeBootCommand = [
+      ...exports,
+      `cd ${shellEscape(repoDir)}`,
+      `nohup bash -lc ${shellEscape(bridgeBootCmd)} > /tmp/openinspect-bridge.log 2>&1 &`,
+    ].join(" && ");
+    const bridgeBootPreview = env.OPENINSPECT_GITHUB_TOKEN
+      ? bridgeBootCommand.split(env.OPENINSPECT_GITHUB_TOKEN).join("***")
+      : bridgeBootCommand;
+    await runShellCommand(sandbox, bridgeBootCommand, "bridge_boot", bridgeBootPreview);
 
     const verifyResult = await runShellCommandWithOutput(
       sandbox,
