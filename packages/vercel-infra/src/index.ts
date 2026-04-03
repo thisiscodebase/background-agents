@@ -24,7 +24,8 @@ import type {
 } from "./types";
 
 const app = new Hono<{ Bindings: Env }>();
-const DEFAULT_BRIDGE_BOOT_CMD = "python -m sandbox_runtime.entrypoint";
+const DEFAULT_BRIDGE_BOOT_CMD =
+  "if command -v python3 >/dev/null 2>&1; then python3 -m sandbox_runtime.entrypoint; else python -m sandbox_runtime.entrypoint; fi";
 
 function shellEscape(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
