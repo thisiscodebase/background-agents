@@ -4,11 +4,22 @@ import app from "./index";
 
 const sandboxMocks = vi.hoisted(() => {
   const sandboxInstance = {
-    runCommand: vi.fn(async () => ({
-      exitCode: 0,
-      stderr: async () => "",
-      stdout: async () => "",
-    })),
+    runCommand: vi.fn(async (_cmd?: string, args?: string[]) => {
+      const script = Array.isArray(args) ? args.join(" ") : "";
+      if (script.includes("bridge process check")) {
+        return {
+          exitCode: 0,
+          stderr: async () => "",
+          stdout: async () =>
+            "=== bridge process check ===\nbridge_alive=1\n=== bridge log tail ===\n",
+        };
+      }
+      return {
+        exitCode: 0,
+        stderr: async () => "",
+        stdout: async () => "",
+      };
+    }),
     stop: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
   };

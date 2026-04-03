@@ -185,6 +185,25 @@ async function bootstrapRuntime(
       ].join(" && "),
       "bridge_boot"
     );
+
+    const verifyResult = await runShellCommandWithOutput(
+      sandbox,
+      [
+        "set +e",
+        "sleep 2",
+        "echo '=== bridge process check ==='",
+        "if ps aux | grep -E 'sandbox_runtime\\.entrypoint|sandbox_runtime\\.bridge|opencode serve' | grep -v grep >/dev/null; then echo 'bridge_alive=1'; else echo 'bridge_alive=0'; fi",
+        "echo '=== bridge log tail ==='",
+        "if [ -f /tmp/openinspect-bridge.log ]; then tail -n 120 /tmp/openinspect-bridge.log; else echo 'bridge log missing: /tmp/openinspect-bridge.log'; fi",
+      ].join(" && "),
+      "bridge_boot_verify"
+    );
+
+    if (!verifyResult.stdout.includes("bridge_alive=1")) {
+      throw new Error(
+        `bridge failed to stay running after boot; diagnostics:\n${verifyResult.stdout}\n${verifyResult.stderr}`.trim()
+      );
+    }
   }
 }
 
