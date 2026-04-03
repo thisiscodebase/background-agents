@@ -107,15 +107,17 @@ async function readCommandStreams(finished: {
 export async function runShellCommand(
   sandbox: any,
   command: string,
-  phase = "shell"
+  phase = "shell",
+  cmdPreviewOverride?: string
 ): Promise<void> {
   const logOutput = isSandboxCmdOutputLogEnabled();
+  const cmdPreview = cmdPreviewOverride ?? command;
   if (isVerboseShellLogging() || logOutput) {
     infraLog({
       event: "shell_command_start",
       phase,
       cmd_bytes: command.length,
-      cmd_preview: truncateForLog(command, 400),
+      cmd_preview: truncateForLog(cmdPreview, 400),
     });
   }
   const finished = await sandbox.runCommand("bash", ["-lc", command]);

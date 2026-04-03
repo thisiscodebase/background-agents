@@ -24,6 +24,7 @@ import type {
 } from "./types";
 
 const app = new Hono<{ Bindings: Env }>();
+const DEFAULT_BRIDGE_BOOT_CMD = "python -m sandbox_runtime.entrypoint";
 
 function shellEscape(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
@@ -68,22 +69,31 @@ async function syncRepository(
   const cloneUrl = token
     ? `https://x-access-token:${token}@github.com/${repoOwner}/${repoName}.git`
     : `https://github.com/${repoOwner}/${repoName}.git`;
+  const redactedCloneUrl = token
+    ? `https://x-access-token:***@github.com/${repoOwner}/${repoName}.git`
+    : cloneUrl;
   const branchName = branch || "main";
   const repoDir = `/vercel/sandbox/workspaces/${repoName}`;
+  const syncCommand = [
+    "set -euo pipefail",
+    "mkdir -p /vercel/sandbox/workspaces",
+    `if [ ! -d ${shellEscape(repoDir)} ]; then git clone ${shellEscape(cloneUrl)} ${shellEscape(repoDir)}; fi`,
+    `cd ${shellEscape(repoDir)}`,
+    "git fetch --all --prune",
+    `git checkout ${shellEscape(branchName)} || true`,
+    "git pull --ff-only || true",
+  ].join(" && ");
+  const syncCommandPreview = [
+    "set -euo pipefail",
+    "mkdir -p /vercel/sandbox/workspaces",
+    `if [ ! -d ${shellEscape(repoDir)} ]; then git clone ${shellEscape(redactedCloneUrl)} ${shellEscape(repoDir)}; fi`,
+    `cd ${shellEscape(repoDir)}`,
+    "git fetch --all --prune",
+    `git checkout ${shellEscape(branchName)} || true`,
+    "git pull --ff-only || true",
+  ].join(" && ");
 
-  await runShellCommand(
-    sandbox,
-    [
-      "set -euo pipefail",
-      "mkdir -p /vercel/sandbox/workspaces",
-      `if [ ! -d ${shellEscape(repoDir)} ]; then git clone ${shellEscape(cloneUrl)} ${shellEscape(repoDir)}; fi`,
-      `cd ${shellEscape(repoDir)}`,
-      "git fetch --all --prune",
-      `git checkout ${shellEscape(branchName)} || true`,
-      "git pull --ff-only || true",
-    ].join(" && "),
-    "sync_repo"
-  );
+  await runShellCommand(sandbox, syncCommand, "sync_repo", syncCommandPreview);
 }
 
 async function bootstrapRuntime(
@@ -91,9 +101,18 @@ async function bootstrapRuntime(
   request: CreateSandboxRequest | RestoreSandboxRequest,
   env: Env
 ): Promise<void> {
+  const sessionId = isRestoreRequest(request)
+    ? request.session_config?.session_id
+    : request.session_id;
+  const repoOwner = isRestoreRequest(request)
+    ? request.session_config?.repo_owner
+    : request.repo_owner;
   const repoName = isRestoreRequest(request)
     ? request.session_config?.repo_name
     : request.repo_name;
+  const branch = isRestoreRequest(request) ? request.session_config?.branch : request.branch;
+  const provider = isRestoreRequest(request) ? request.session_config?.provider : request.provider;
+  const model = isRestoreRequest(request) ? request.session_config?.model : request.model;
   const repoDir = repoName ? `/vercel/sandbox/workspaces/${repoName}` : "/vercel/sandbox";
 
   const exports: string[] = [];
@@ -108,6 +127,23 @@ async function bootstrapRuntime(
   setEnv("SANDBOX_AUTH_TOKEN", request.sandbox_auth_token);
   if ("sandbox_id" in request) {
     setEnv("SANDBOX_ID", request.sandbox_id ?? undefined);
+  }
+  setEnv("SESSION_ID", sessionId);
+  setEnv("REPO_OWNER", repoOwner);
+  setEnv("REPO_NAME", repoName);
+  setEnv("BRANCH", branch ?? undefined);
+  setEnv("PROVIDER", provider ?? undefined);
+  setEnv("MODEL", model ?? undefined);
+  if (sessionId) {
+    const sessionConfig = {
+      session_id: sessionId,
+      repo_owner: repoOwner ?? "",
+      repo_name: repoName ?? "",
+      branch: branch ?? "main",
+      provider: provider ?? "anthropic",
+      model: model ?? "claude-sonnet-4-6",
+    };
+    setEnv("SESSION_CONFIG", JSON.stringify(sessionConfig));
   }
 
   const userEnvVars = request.user_env_vars ?? undefined;
@@ -130,13 +166,22 @@ async function bootstrapRuntime(
     );
   }
 
-  if (env.OPENINSPECT_BRIDGE_BOOT_CMD) {
+  const bridgeBootCmd = env.OPENINSPECT_BRIDGE_BOOT_CMD || DEFAULT_BRIDGE_BOOT_CMD;
+  if (!env.OPENINSPECT_BRIDGE_BOOT_CMD) {
+    infraLog({
+      event: "bridge_boot_cmd_defaulted",
+      default_cmd: DEFAULT_BRIDGE_BOOT_CMD,
+      session_id: sessionId,
+      repo: repoName,
+    });
+  }
+  if (bridgeBootCmd) {
     await runShellCommand(
       sandbox,
       [
         ...exports,
         `cd ${shellEscape(repoDir)}`,
-        `nohup bash -lc ${shellEscape(env.OPENINSPECT_BRIDGE_BOOT_CMD)} > /tmp/openinspect-bridge.log 2>&1 &`,
+        `nohup bash -lc ${shellEscape(bridgeBootCmd)} > /tmp/openinspect-bridge.log 2>&1 &`,
       ].join(" && "),
       "bridge_boot"
     );
